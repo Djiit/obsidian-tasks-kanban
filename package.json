@@ -7,7 +7,7 @@
     "dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
     "build": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --minify",
     "build:dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian",
-    "dev:reload": "obsidian plugin:reload id=obsidian-tasks-kanban",
+    "dev:reload": "obsidian plugin:reload id=tasks-kanban",
     "dev:full": "npm run build:dev && npm run dev:reload",
     "test": "vitest run",
     "test:watch": "vitest",

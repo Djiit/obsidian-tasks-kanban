@@ -90,11 +90,10 @@ export class KanbanCard {
     private setupDragAndDrop() {
         this.dragStartHandler = (e: DragEvent) => {
             if (!e.dataTransfer) return;
-            
-            // Set the drag data - we use the task ID and current status
-            e.dataTransfer.setData('text/plain', this.task.id);
-            e.dataTransfer.setData('application/task-id', this.task.id);
+
+            e.dataTransfer.setData('text/plain', this.task.description);
             e.dataTransfer.setData('application/task-path', this.task.taskLocation?.path || '');
+            e.dataTransfer.setData('application/task-line', String(this.task.taskLocation?.lineNumber ?? -1));
             e.dataTransfer.setData('application/task-current-status', this.task.status.symbol);
             
             // Set the drag image (optional visual feedback)
@@ -146,7 +145,7 @@ export class KanbanCard {
             this.clickHandler = null;
         }
         
-        this.container.empty();
+        this.container.remove();
     }
 
     /**

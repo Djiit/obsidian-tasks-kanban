@@ -8,7 +8,7 @@ import type { KanbanColumnConfig } from './KanbanBoard';
  */
 export class KanbanColumn {
     private container: HTMLElement;
-    private config: KanbanColumnConfig;
+    readonly config: KanbanColumnConfig;
     private tasksIntegration: TasksIntegration;
     private cards: KanbanCard[] = [];
     private dragOverHandler: ((e: DragEvent) => void) | null = null;
@@ -129,20 +129,21 @@ export class KanbanColumn {
             e.stopPropagation();
             this.container.removeClass('tasks-kanban-column-drag-over');
 
-            const taskId = e.dataTransfer?.getData('application/task-id');
             const taskPath = e.dataTransfer?.getData('application/task-path');
+            const taskLine = e.dataTransfer?.getData('application/task-line');
             const oldStatus = e.dataTransfer?.getData('application/task-current-status');
 
-            if (!taskId || !taskPath || oldStatus === this.config.statusSymbol) {
+            if (!taskPath || !taskLine || oldStatus === this.config.statusSymbol) {
                 return;
             }
 
-            // Find the task from all tasks
+            const lineNumber = Number(taskLine);
             const allTasks = this.tasksIntegration.getTasks();
-            const task = allTasks.find((t) => t.id === taskId);
-            
+            const task = allTasks.find(
+                (t) => t.taskLocation?.path === taskPath && t.taskLocation?.lineNumber === lineNumber,
+            );
+
             if (!task) {
-                console.warn(`Task with ID ${taskId} not found`);
                 return;
             }
 
@@ -196,10 +197,4 @@ export class KanbanColumn {
         this.cards = [];
     }
 
-    /**
-     * Get the column configuration
-     */
-    getConfig(): KanbanColumnConfig {
-        return this.config;
-    }
 }
