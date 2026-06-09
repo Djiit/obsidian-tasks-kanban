@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/v0.2.0...0.3.0) (2026-06-09)
+
+
+### Features
+
+* implement basic drag and drop ([7f7a9c8](https://github.com/Djiit/obsidian-tasks-kanban/commit/7f7a9c8babe6964def48efdbfc0611d2c9274ce8))
+
 ## [0.2.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/v0.1.0...v0.2.0) (2026-06-09)
 
 
