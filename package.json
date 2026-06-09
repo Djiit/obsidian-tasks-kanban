@@ -1,0 +1,24 @@
+{
+  "name": "obsidian-tasks-kanban",
+  "version": "0.1.0",
+  "description": "Kanban board view for Obsidian Tasks",
+  "main": "main.js",
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
+    "build": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --minify",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
+  },
+  "keywords": ["obsidian", "plugin", "tasks", "kanban"],
+  "author": "Julien Tanay",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "esbuild": "^0.19.11",
+    "jsdom": "^24.0.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}
