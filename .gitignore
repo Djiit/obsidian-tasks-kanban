@@ -27,6 +27,10 @@ coverage/
 .env.local
 .env.*.local
 
+
+# AI
+.serena/
+.memsearch/
+
 # Custom
 NOTES.md
-
