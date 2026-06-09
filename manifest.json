@@ -1,12 +1,10 @@
 {
-  "id": "obsidian-tasks-kanban",
+  "id": "tasks-kanban",
   "name": "Tasks Kanban",
   "version": "0.1.0",
   "description": "Display Tasks in a Kanban board view with columns for each status",
   "author": "Julien Tanay",
   "authorUrl": "https://github.com/djiit",
-  "fundingUrl": "",
-  "license": "MIT",
   "minAppVersion": "1.5.0",
   "isDesktopOnly": false
 }
