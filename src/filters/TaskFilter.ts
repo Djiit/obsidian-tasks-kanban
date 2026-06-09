@@ -197,6 +197,6 @@ export class TaskFilter {
  */
 interface Filter {
     type: 'tag' | 'path' | 'status' | 'due' | 'priority' | 'description';
-    value: any;
+    value: string | string[] | number | boolean | null;
     operator?: 'equals' | 'before' | 'after';
 }

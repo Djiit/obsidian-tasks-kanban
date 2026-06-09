@@ -61,8 +61,6 @@ export class TaskUpdater {
         newStatus: string,
     ): string {
         // Escape special regex characters in the original line
-        const escapedLine = originalLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        
         // Create regex to match the task line with the old status
         // Format: - [oldStatus] description
         const lineRegex = new RegExp(

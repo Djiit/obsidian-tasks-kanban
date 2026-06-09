@@ -125,7 +125,7 @@ export class KanbanCard {
         if (filePath && this.app) {
             const file = this.app.vault.getAbstractFileByPath(filePath);
             if (file) {
-                this.app.workspace.getLeaf().openFile(file);
+                void this.app.workspace.getLeaf().openFile(file);
             }
         }
     }

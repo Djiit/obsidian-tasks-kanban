@@ -1,4 +1,5 @@
 import type { App, EventRef } from 'obsidian';
+import { TaskUpdater } from './TaskUpdater';
 
 /**
  * Interface representing a Task from the Tasks plugin
@@ -17,7 +18,7 @@ export interface Task {
     startDate: string | null;
     scheduledDate: string | null;
     doneDate: string | null;
-    recurrence: any | null;
+    recurrence: Record<string, unknown> | null;
     id: string;
     taskLocation: {
         path: string;

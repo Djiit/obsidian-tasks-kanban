@@ -12,7 +12,7 @@ export default class TasksKanbanPlugin extends Plugin {
         const tasksPlugin = this.app.plugins.getPlugin('obsidian-tasks-plugin');
         if (!tasksPlugin) {
             new Notice(
-                'Tasks Kanban requires the Tasks plugin. Install it from Community Plugins.',
+                'Tasks kanban requires the tasks plugin. Install it from community plugins.',
             );
             return;
         }
@@ -21,12 +21,12 @@ export default class TasksKanbanPlugin extends Plugin {
 
         this.registerView(
             VIEW_TYPE,
-            (leaf: WorkspaceLeaf) => new TasksBoardView(leaf, this.tasksIntegration!),
+            (leaf: WorkspaceLeaf) => new TasksBoardView(leaf, this.tasksIntegration),
         );
 
         this.addCommand({
-            id: 'open-tasks-kanban',
-            name: 'Open Tasks Kanban Board',
+            id: 'open-board',
+            name: 'Open board',
             callback: () => this.activateView(),
         });
     }
@@ -50,7 +50,7 @@ export default class TasksKanbanPlugin extends Plugin {
             active: true,
         });
 
-        this.app.workspace.revealLeaf(
+        this.app.workspace.setActiveLeaf(
             this.app.workspace.getLeavesOfType(VIEW_TYPE)[0],
         );
     }

@@ -21,7 +21,7 @@ export class TasksBoardView extends ItemView {
     }
 
     getDisplayText(): string {
-        return 'Tasks Kanban Board';
+        return 'Tasks kanban board';
     }
 
     getIcon(): string {

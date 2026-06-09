@@ -53,7 +53,7 @@ export class KanbanColumn {
         countBadge.setText('0');
 
         // Create cards container
-        const cardsContainer = this.container.createDiv({
+        this.container.createDiv({
             cls: 'tasks-kanban-column-cards',
         });
 
@@ -124,7 +124,7 @@ export class KanbanColumn {
         cardsContainer.addEventListener('dragleave', this.dragLeaveHandler);
 
         // Drop - handle the task status change
-        this.dropHandler = async (e: DragEvent) => {
+        this.dropHandler = (e: DragEvent) => {
             e.preventDefault();
             e.stopPropagation();
             this.container.removeClass('tasks-kanban-column-drag-over');
@@ -146,17 +146,10 @@ export class KanbanColumn {
                 return;
             }
 
-            // Update the task status in the source file
-            const success = await this.tasksIntegration.taskUpdater.updateTaskStatus(
+            void this.tasksIntegration.taskUpdater.updateTaskStatus(
                 task,
                 this.config.statusSymbol,
             );
-
-            if (success) {
-                // Refresh the board to show the updated status
-                // The Tasks plugin will emit a cache update event
-                // which will trigger a refresh of all views
-            }
         };
         cardsContainer.addEventListener('drop', this.dropHandler);
     }
