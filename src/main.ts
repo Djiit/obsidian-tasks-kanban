@@ -19,9 +19,10 @@ export default class TasksKanbanPlugin extends Plugin {
 
         this.tasksIntegration = new TasksIntegration(this.app);
 
+        const tasksIntegration = this.tasksIntegration;
         this.registerView(
             VIEW_TYPE,
-            (leaf: WorkspaceLeaf) => new TasksBoardView(leaf, this.tasksIntegration),
+            (leaf: WorkspaceLeaf) => new TasksBoardView(leaf, tasksIntegration),
         );
 
         this.addCommand({
@@ -45,7 +46,11 @@ export default class TasksKanbanPlugin extends Plugin {
             return;
         }
 
-        await this.app.workspace.getRightLeaf(false).setViewState({
+        const rightLeaf = this.app.workspace.getRightLeaf(false);
+        if (!rightLeaf) {
+            return;
+        }
+        await rightLeaf.setViewState({
             type: VIEW_TYPE,
             active: true,
         });

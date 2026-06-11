@@ -40,6 +40,7 @@ export class KanbanCard {
         });
         statusEl.setText(this.task.status.symbol);
         statusEl.setAttribute('title', this.task.status.name);
+        statusEl.setAttribute('data-status-type', this.task.status.type);
 
         // Description
         const descEl = this.container.createSpan({
@@ -94,8 +95,7 @@ export class KanbanCard {
             e.dataTransfer.setData('text/plain', this.task.description);
             e.dataTransfer.setData('application/task-path', this.task.taskLocation?.path || '');
             e.dataTransfer.setData('application/task-line', String(this.task.taskLocation?.lineNumber ?? -1));
-            e.dataTransfer.setData('application/task-current-status', this.task.status.symbol);
-            
+
             // Set the drag image (optional visual feedback)
             if (e.target) {
                 e.dataTransfer.setDragImage(e.target as HTMLElement, 0, 0);
@@ -122,7 +122,7 @@ export class KanbanCard {
     private openSourceFile() {
         const filePath = this.task.taskLocation?.path;
         if (filePath && this.app) {
-            const file = this.app.vault.getAbstractFileByPath(filePath);
+            const file = this.app.vault.getFileByPath(filePath);
             if (file) {
                 void this.app.workspace.getLeaf().openFile(file);
             }

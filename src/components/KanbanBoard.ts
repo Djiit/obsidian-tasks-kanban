@@ -2,25 +2,9 @@ import type { Task } from '../services/TasksIntegration';
 import { TasksIntegration } from '../services/TasksIntegration';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskFilter } from '../filters/TaskFilter';
+import { buildColumns } from '../utils/statusColumns';
 
-/**
- * Configuration for a Kanban column
- */
-export interface KanbanColumnConfig {
-    id: string;
-    title: string;
-    statusSymbol: string;
-    color?: string;
-}
-
-/**
- * Default columns: Todo, In Progress, Done
- */
-const DEFAULT_COLUMNS: KanbanColumnConfig[] = [
-    { id: 'todo', title: 'Todo', statusSymbol: ' ' },
-    { id: 'in-progress', title: 'In Progress', statusSymbol: '/' },
-    { id: 'done', title: 'Done', statusSymbol: 'x' },
-];
+export type { KanbanColumnConfig } from '../utils/statusColumns';
 
 /**
  * The Kanban board component
@@ -42,13 +26,14 @@ export class KanbanBoard {
     }
 
     /**
-     * Initialize columns from default configuration
+     * Initialize columns derived from the vault's configured statuses
      */
     private initColumns() {
         this.container.empty();
         this.container.addClass('tasks-kanban-board');
 
-        for (const config of DEFAULT_COLUMNS) {
+        const columnConfigs = buildColumns(this.tasksIntegration.getStatuses());
+        for (const config of columnConfigs) {
             const columnEl = this.container.createDiv({
                 cls: 'tasks-kanban-column',
             });
@@ -95,7 +80,7 @@ export class KanbanBoard {
     private distributeTasks() {
         for (const column of this.columns) {
             const statusTasks = this.tasks.filter(
-                (task) => task.status.symbol === column.config.statusSymbol,
+                (task) => task.status.type === column.config.type,
             );
             column.updateTasks(statusTasks);
         }

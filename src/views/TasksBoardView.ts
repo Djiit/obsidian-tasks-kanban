@@ -33,6 +33,10 @@ export class TasksBoardView extends ItemView {
         containerEl.empty();
         containerEl.addClass('tasks-kanban-view');
 
+        // Load the vault's status configuration so columns reflect it
+        // (also picks up status-config changes whenever the board is reopened).
+        await this.tasksIntegration.loadStatuses();
+
         // Create the Kanban board
         this.kanbanBoard = new KanbanBoard(
             containerEl,

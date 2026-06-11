@@ -151,7 +151,7 @@ export class TaskFilter {
                 return task.tags?.some((tag) => tag === filter.value);
 
             case 'path':
-                return task.taskLocation?.path.includes(filter.value);
+                return task.taskLocation?.path.includes(String(filter.value));
 
             case 'status':
                 return task.status.symbol === filter.value;
@@ -163,7 +163,9 @@ export class TaskFilter {
                 return task.priority === filter.value;
 
             case 'description':
-                return task.description.toLowerCase().includes(filter.value.toLowerCase());
+                return task.description
+                    .toLowerCase()
+                    .includes(String(filter.value).toLowerCase());
 
             default:
                 return true;
@@ -177,7 +179,7 @@ export class TaskFilter {
         if (!task.dueDate) return false;
 
         const taskDate = new Date(task.dueDate);
-        const filterDate = new Date(filter.value);
+        const filterDate = new Date(String(filter.value));
 
         switch (filter.operator) {
             case 'before':

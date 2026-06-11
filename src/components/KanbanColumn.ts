@@ -1,7 +1,7 @@
 import type { Task } from '../services/TasksIntegration';
 import { TasksIntegration } from '../services/TasksIntegration';
 import { KanbanCard } from './KanbanCard';
-import type { KanbanColumnConfig } from './KanbanBoard';
+import type { KanbanColumnConfig } from '../utils/statusColumns';
 
 /**
  * The Kanban column component
@@ -35,7 +35,7 @@ export class KanbanColumn {
     private init() {
         this.container.empty();
         this.container.addClass('tasks-kanban-column');
-        this.container.setAttribute('data-status-symbol', this.config.statusSymbol);
+        this.container.setAttribute('data-status-type', this.config.type);
 
         // Create header
         const header = this.container.createDiv({
@@ -78,7 +78,7 @@ export class KanbanColumn {
         }
 
         // Create new cards
-        const cardsContainer = this.container.querySelector('.tasks-kanban-column-cards');
+        const cardsContainer = this.container.querySelector<HTMLElement>('.tasks-kanban-column-cards');
         if (!cardsContainer) return;
 
         for (const task of tasks) {
@@ -95,7 +95,7 @@ export class KanbanColumn {
      * Set up drag and drop for the column
      */
     private setupDragAndDrop() {
-        const cardsContainer = this.container.querySelector('.tasks-kanban-column-cards');
+        const cardsContainer = this.container.querySelector<HTMLElement>('.tasks-kanban-column-cards');
         if (!cardsContainer) return;
 
         // Drag over - add visual feedback
@@ -131,9 +131,8 @@ export class KanbanColumn {
 
             const taskPath = e.dataTransfer?.getData('application/task-path');
             const taskLine = e.dataTransfer?.getData('application/task-line');
-            const oldStatus = e.dataTransfer?.getData('application/task-current-status');
 
-            if (!taskPath || !taskLine || oldStatus === this.config.statusSymbol) {
+            if (!taskPath || !taskLine) {
                 return;
             }
 
@@ -143,13 +142,15 @@ export class KanbanColumn {
                 (t) => t.taskLocation?.path === taskPath && t.taskLocation?.lineNumber === lineNumber,
             );
 
-            if (!task) {
+            if (!task || task.status.type === this.config.type) {
+                // Dropped into the column it already belongs to — no-op,
+                // even if the symbol differs (e.g. a custom 'A' within In Progress).
                 return;
             }
 
             void this.tasksIntegration.taskUpdater.updateTaskStatus(
                 task,
-                this.config.statusSymbol,
+                this.config.dropSymbol,
             );
         };
         cardsContainer.addEventListener('drop', this.dropHandler);
@@ -160,7 +161,7 @@ export class KanbanColumn {
      */
     destroy() {
         if (this.dragOverHandler) {
-            const cardsContainer = this.container.querySelector('.tasks-kanban-column-cards');
+            const cardsContainer = this.container.querySelector<HTMLElement>('.tasks-kanban-column-cards');
             if (cardsContainer) {
                 cardsContainer.removeEventListener('dragover', this.dragOverHandler);
             }
@@ -168,7 +169,7 @@ export class KanbanColumn {
         }
         
         if (this.dragEnterHandler) {
-            const cardsContainer = this.container.querySelector('.tasks-kanban-column-cards');
+            const cardsContainer = this.container.querySelector<HTMLElement>('.tasks-kanban-column-cards');
             if (cardsContainer) {
                 cardsContainer.removeEventListener('dragenter', this.dragEnterHandler);
             }
@@ -176,7 +177,7 @@ export class KanbanColumn {
         }
         
         if (this.dragLeaveHandler) {
-            const cardsContainer = this.container.querySelector('.tasks-kanban-column-cards');
+            const cardsContainer = this.container.querySelector<HTMLElement>('.tasks-kanban-column-cards');
             if (cardsContainer) {
                 cardsContainer.removeEventListener('dragleave', this.dragLeaveHandler);
             }
@@ -184,7 +185,7 @@ export class KanbanColumn {
         }
         
         if (this.dropHandler) {
-            const cardsContainer = this.container.querySelector('.tasks-kanban-column-cards');
+            const cardsContainer = this.container.querySelector<HTMLElement>('.tasks-kanban-column-cards');
             if (cardsContainer) {
                 cardsContainer.removeEventListener('drop', this.dropHandler);
             }
