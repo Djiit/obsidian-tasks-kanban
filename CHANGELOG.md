@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.3.0...0.4.0) (2026-06-11)
+
+
+### Features
+
+* add status type support for columns ([992b90b](https://github.com/Djiit/obsidian-tasks-kanban/commit/992b90ba12a69dcc150afbe75dd0e0b0609fd055))
+
 ## [0.3.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/v0.2.0...0.3.0) (2026-06-09)
 
 
