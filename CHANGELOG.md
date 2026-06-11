@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.4.0...0.4.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* attach release assets and fix manifest description ([132fdf6](https://github.com/Djiit/obsidian-tasks-kanban/commit/132fdf602e55c1e4870c6d6641220b77a7469b35))
+* end manifest description with punctuation and attach release assets ([bea930d](https://github.com/Djiit/obsidian-tasks-kanban/commit/bea930dd586c899f1ee1e6b0a14a308825133e1f))
+
 ## [0.4.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.3.0...0.4.0) (2026-06-11)
 
 

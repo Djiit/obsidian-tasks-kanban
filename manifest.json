@@ -1,7 +1,7 @@
 {
   "id": "tasks-kanban",
   "name": "Tasks Kanban",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Display Tasks in a Kanban board view with columns for each status.",
   "author": "Julien Tanay",
   "authorUrl": "https://github.com/djiit",
