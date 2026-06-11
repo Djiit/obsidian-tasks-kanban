@@ -1,5 +1,6 @@
 import type { Task } from '../services/TasksIntegration';
 import { TasksIntegration } from '../services/TasksIntegration';
+import { truncate } from '../utils/truncate';
 import type { App } from 'obsidian';
 
 /**
@@ -42,11 +43,16 @@ export class KanbanCard {
         statusEl.setAttribute('title', this.task.status.name);
         statusEl.setAttribute('data-status-type', this.task.status.type);
 
-        // Description
+        // Description (capped so a long task can't grow the card unbounded;
+        // the full text stays reachable via the tooltip)
         const descEl = this.container.createSpan({
             cls: 'tasks-kanban-card-description',
         });
-        descEl.setText(this.task.description);
+        const displayText = truncate(this.task.description);
+        descEl.setText(displayText);
+        if (displayText !== this.task.description) {
+            descEl.setAttribute('title', this.task.description);
+        }
 
         // Tags
         if (this.task.tags && this.task.tags.length > 0) {
