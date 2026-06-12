@@ -35,6 +35,6 @@
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "obsidian": "^1.13.0"
+    "obsidian": "^1.13.1"
   }
 }
