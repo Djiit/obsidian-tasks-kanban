@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.5.0...0.6.0) (2026-06-12)
+
+
+### Features
+
+* add board sorting options ([3f868ad](https://github.com/Djiit/obsidian-tasks-kanban/commit/3f868ad9c8a54667bf8fb16aa0aa4a3ed5483c95))
+* add filter/sort persistence ([fc21f70](https://github.com/Djiit/obsidian-tasks-kanban/commit/fc21f70d10467d066e8abdb529307b2a14d58d98))
+
+
+### Bug Fixes
+
+* apply formatter' ([ab71ab1](https://github.com/Djiit/obsidian-tasks-kanban/commit/ab71ab1ec4ab05b4cd20ff712246dd61f8597aad))
+* remove !important from styles ([fe5b5b9](https://github.com/Djiit/obsidian-tasks-kanban/commit/fe5b5b94e7b587e107bdfc21838f21a2c356f4ef))
+
 ## [0.5.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.4.1...0.5.0) (2026-06-12)
 
 
