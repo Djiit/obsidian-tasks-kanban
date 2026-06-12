@@ -375,15 +375,17 @@
 }
 
 /* Drag and drop styles */
-.tasks-kanban-card-dragging {
+/* Class is chained to the base selector to win specificity over
+   .tasks-kanban-card:hover / :active without needing !important. */
+.tasks-kanban-card.tasks-kanban-card-dragging {
     opacity: 0.5;
-    border: 2px dashed var(--text-muted) !important;
-    background-color: var(--background-tertiary) !important;
+    border: 2px dashed var(--text-muted);
+    background-color: var(--background-tertiary);
 }
 
-.tasks-kanban-column-drag-over {
+.tasks-kanban-column.tasks-kanban-column-drag-over {
     background-color: var(--background-tertiary);
-    border: 2px solid var(--text-normal) !important;
+    border: 2px solid var(--text-normal);
     border-radius: 8px;
 }
 
