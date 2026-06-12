@@ -2,9 +2,33 @@ import { Plugin, type WorkspaceLeaf, Notice } from "obsidian";
 
 import { TasksBoardView } from "./views/TasksBoardView";
 import { TasksIntegration } from "./services/TasksIntegration";
-import { DEFAULT_BOARD_STATE, type BoardState } from "./types/persistence";
+import {
+  DEFAULT_BOARD_STATE,
+  type BoardState,
+  type LegacyBoardState,
+} from "./types/persistence";
+import { serializeQuery, withSort, withTags } from "./query/boardQuery";
+import { DEFAULT_SORT_STATE } from "./utils/sortTasks";
 
 const VIEW_TYPE = "tasks-board";
+
+/**
+ * Build a canonical query string from pre-query persisted fields
+ * (`selectedTags`, `sortState`). Returns "" when there is nothing to migrate.
+ */
+function migrateLegacyQuery(data: LegacyBoardState | null): string {
+  if (!data) {
+    return "";
+  }
+  let query = withTags(
+    { filters: [], sort: { ...DEFAULT_SORT_STATE } },
+    data.selectedTags ?? [],
+  );
+  if (data.sortState) {
+    query = withSort(query, data.sortState);
+  }
+  return serializeQuery(query);
+}
 
 export default class TasksKanbanPlugin extends Plugin {
   private tasksIntegration: TasksIntegration | null = null;
@@ -50,17 +74,18 @@ export default class TasksKanbanPlugin extends Plugin {
   /**
    * Load persisted board state, merged over the defaults so older installs
    * (no data file) and partial data both yield a complete BoardState.
+   *
+   * Migration: data files written before the canonical-query model only have
+   * `selectedTags`/`sortState`. When `query` is absent we synthesize it from
+   * those legacy fields so existing boards keep their filters and sort.
    */
   private async loadBoardState() {
-    const data = (await this.loadData()) as Partial<BoardState> | null;
+    const data = (await this.loadData()) as
+      | (Partial<BoardState> & LegacyBoardState)
+      | null;
     this.boardState = {
       ...DEFAULT_BOARD_STATE,
-      ...data,
-      sortState: {
-        ...DEFAULT_BOARD_STATE.sortState,
-        ...data?.sortState,
-      },
-      selectedTags: data?.selectedTags ?? DEFAULT_BOARD_STATE.selectedTags,
+      query: data?.query ?? migrateLegacyQuery(data),
       collapsedColumns:
         data?.collapsedColumns ?? DEFAULT_BOARD_STATE.collapsedColumns,
     };

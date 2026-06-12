@@ -1,0 +1,258 @@
+import { describe, it, expect } from 'vitest';
+import {
+    applyBoardQuery,
+    getSort,
+    getTags,
+    getTitle,
+    parseQuery,
+    serializeQuery,
+    withSort,
+    withTags,
+    withTitle,
+} from '../src/query/boardQuery';
+import { DEFAULT_SORT_STATE } from '../src/utils/sortTasks';
+import type { Task } from '../src/services/TasksIntegration';
+
+function createTask(overrides: Partial<Task> = {}): Task {
+    return {
+        id: '1',
+        description: 'Test task',
+        status: { symbol: ' ', name: 'Todo', type: 'TODO' },
+        tags: [],
+        priority: null,
+        dueDate: null,
+        startDate: null,
+        scheduledDate: null,
+        doneDate: null,
+        createdDate: null,
+        cancelledDate: null,
+        dependsOn: [],
+        recurrence: null,
+        taskLocation: { path: '/test.md', lineNumber: 1 },
+        originalMarkdown: '- [ ] Test task',
+        ...overrides,
+    };
+}
+
+const ids = (tasks: Task[]) => tasks.map((t) => t.id);
+
+describe('parseQuery', () => {
+    it('returns empty query for blank input', () => {
+        const { query, errors } = parseQuery('');
+        expect(query.filters).toEqual([]);
+        expect(query.sort).toEqual(DEFAULT_SORT_STATE);
+        expect(errors).toEqual([]);
+    });
+
+    it('ignores blank lines', () => {
+        const { query } = parseQuery('tag includes #work\n\n  \ntag includes #home');
+        expect(getTags(query)).toEqual(['work', 'home']);
+    });
+
+    it('parses "tag includes" and strips the leading #', () => {
+        const { query, errors } = parseQuery('tag includes #work\ntag includes home');
+        expect(getTags(query)).toEqual(['work', 'home']);
+        expect(errors).toEqual([]);
+    });
+
+    it('parses "description includes"', () => {
+        const { query } = parseQuery('description includes write tests');
+        expect(query.filters).toEqual([
+            { kind: 'description', value: 'write tests' },
+        ]);
+    });
+
+    it('parses sort with and without reverse', () => {
+        expect(parseQuery('sort by priority').query.sort).toEqual({
+            field: 'priority',
+            direction: 'asc',
+        });
+        expect(parseQuery('sort by due reverse').query.sort).toEqual({
+            field: 'dueDate',
+            direction: 'desc',
+        });
+    });
+
+    it('maps each sort keyword to its field', () => {
+        expect(parseQuery('sort by scheduled').query.sort.field).toBe('scheduledDate');
+        expect(parseQuery('sort by start').query.sort.field).toBe('startDate');
+        expect(parseQuery('sort by created').query.sort.field).toBe('createdDate');
+    });
+
+    describe('tolerant errors on unsupported lines', () => {
+        it('flags a bare # tag (no shorthand) and skips it', () => {
+            const { query, errors } = parseQuery('#work');
+            expect(query.filters).toEqual([]);
+            expect(errors).toHaveLength(1);
+            expect(errors[0]).toContain('Line 1');
+            expect(errors[0]).toContain('unsupported');
+        });
+
+        it('flags valid-but-unsupported Tasks instructions', () => {
+            for (const line of [
+                'path includes Projects',
+                'priority is high',
+                'done',
+                'due before 2026-01-01',
+                'status.type is TODO',
+            ]) {
+                const { query, errors } = parseQuery(line);
+                expect(query.filters).toEqual([]);
+                expect(errors).toHaveLength(1);
+            }
+        });
+
+        it('treats bare text as unsupported (not a description filter)', () => {
+            const { errors } = parseQuery('groceries');
+            expect(errors).toHaveLength(1);
+        });
+
+        it('flags an unknown sort field', () => {
+            const { errors } = parseQuery('sort by frobnicate');
+            expect(errors).toHaveLength(1);
+            expect(errors[0]).toContain('unknown sort field');
+        });
+
+        it('keeps valid lines while collecting errors for bad ones', () => {
+            const { query, errors } = parseQuery(
+                'tag includes #work\npath includes X\nsort by due',
+            );
+            expect(getTags(query)).toEqual(['work']);
+            expect(query.sort.field).toBe('dueDate');
+            expect(errors).toHaveLength(1);
+            expect(errors[0]).toContain('Line 2');
+        });
+    });
+});
+
+describe('serializeQuery / round-trip', () => {
+    it('serializes tags in reference-exact "tag includes #" form', () => {
+        const { query } = parseQuery('tag includes #work');
+        expect(serializeQuery(query)).toBe('tag includes #work');
+    });
+
+    it('serializes a mixed query deterministically', () => {
+        const { query } = parseQuery(
+            'tag includes #work\ndescription includes write\nsort by priority reverse',
+        );
+        expect(serializeQuery(query)).toBe(
+            'tag includes #work\ndescription includes write\nsort by priority reverse',
+        );
+    });
+
+    it('omits the sort line when there is no sorting', () => {
+        const { query } = parseQuery('tag includes #work');
+        expect(serializeQuery(query)).toBe('tag includes #work');
+    });
+
+    it('round-trips to an equivalent query', () => {
+        const source =
+            'tag includes #a\ntag includes #b\ndescription includes thing\nsort by scheduled reverse';
+        const first = parseQuery(source).query;
+        const second = parseQuery(serializeQuery(first)).query;
+        expect(second).toEqual(first);
+    });
+});
+
+describe('slice helpers', () => {
+    const base = parseQuery('tag includes #work\nsort by priority').query;
+
+    it('getTitle/getTags/getSort read slices', () => {
+        const q = parseQuery(
+            'tag includes #work\ndescription includes hi\nsort by due reverse',
+        ).query;
+        expect(getTitle(q)).toBe('hi');
+        expect(getTags(q)).toEqual(['work']);
+        expect(getSort(q)).toEqual({ field: 'dueDate', direction: 'desc' });
+    });
+
+    it('withTitle preserves tags and sort', () => {
+        const updated = withTitle(base, 'hello');
+        expect(getTitle(updated)).toBe('hello');
+        expect(getTags(updated)).toEqual(['work']);
+        expect(updated.sort.field).toBe('priority');
+    });
+
+    it('withTitle removes the description filter when cleared', () => {
+        const withDesc = withTitle(base, 'hello');
+        const cleared = withTitle(withDesc, '   ');
+        expect(getTitle(cleared)).toBe('');
+        expect(cleared.filters.some((f) => f.kind === 'description')).toBe(false);
+    });
+
+    it('withTags replaces tags but keeps the description', () => {
+        const withDesc = withTitle(base, 'hello');
+        const updated = withTags(withDesc, ['home', 'urgent']);
+        expect(getTags(updated)).toEqual(['home', 'urgent']);
+        expect(getTitle(updated)).toBe('hello');
+    });
+
+    it('withTags normalizes a leading #', () => {
+        const updated = withTags(base, ['#home']);
+        expect(getTags(updated)).toEqual(['home']);
+    });
+
+    it('withSort preserves filters', () => {
+        const updated = withSort(base, { field: 'dueDate', direction: 'desc' });
+        expect(updated.sort).toEqual({ field: 'dueDate', direction: 'desc' });
+        expect(updated.filters).toEqual(base.filters);
+    });
+});
+
+describe('applyBoardQuery', () => {
+    it('returns a copy when query is empty', () => {
+        const tasks = [createTask()];
+        const result = applyBoardQuery(tasks, {
+            filters: [],
+            sort: { ...DEFAULT_SORT_STATE },
+        });
+        expect(result).not.toBe(tasks);
+        expect(result).toHaveLength(1);
+    });
+
+    it('ORs tags together', () => {
+        const tasks = [
+            createTask({ id: 'w', tags: ['work'] }),
+            createTask({ id: 'h', tags: ['home'] }),
+            createTask({ id: 'o', tags: ['other'] }),
+        ];
+        const { query } = parseQuery('tag includes #work\ntag includes #home');
+        expect(ids(applyBoardQuery(tasks, query))).toEqual(['w', 'h']);
+    });
+
+    it('matches #-prefixed query tags against bare task tags', () => {
+        const tasks = [createTask({ id: 'w', tags: ['work'] })];
+        const { query } = parseQuery('tag includes #work');
+        expect(ids(applyBoardQuery(tasks, query))).toEqual(['w']);
+    });
+
+    it('ANDs description on top of tags', () => {
+        const tasks = [
+            createTask({ id: 'match', tags: ['work'], description: 'Write docs' }),
+            createTask({ id: 'wrongDesc', tags: ['work'], description: 'Fix bugs' }),
+            createTask({ id: 'wrongTag', tags: ['home'], description: 'Write docs' }),
+        ];
+        const { query } = parseQuery('tag includes #work\ndescription includes write');
+        expect(ids(applyBoardQuery(tasks, query))).toEqual(['match']);
+    });
+
+    it('matches description case-insensitively', () => {
+        const tasks = [
+            createTask({ id: 'a', description: 'Write documentation' }),
+            createTask({ id: 'b', description: 'Fix bugs' }),
+        ];
+        const { query } = parseQuery('description includes WRITE');
+        expect(ids(applyBoardQuery(tasks, query))).toEqual(['a']);
+    });
+
+    it('sorts filtered results, sinking missing values', () => {
+        const tasks = [
+            createTask({ id: 'late', tags: ['t'], dueDate: '2026-03-01' }),
+            createTask({ id: 'none', tags: ['t'], dueDate: null }),
+            createTask({ id: 'early', tags: ['t'], dueDate: '2026-01-01' }),
+            createTask({ id: 'excluded', tags: ['x'], dueDate: '2025-01-01' }),
+        ];
+        const { query } = parseQuery('tag includes #t\nsort by due');
+        expect(ids(applyBoardQuery(tasks, query))).toEqual(['early', 'late', 'none']);
+    });
+});

@@ -77,6 +77,18 @@ export class SortBar {
     return { field: this.field, direction: this.direction };
   }
 
+  /**
+   * Set the control to the given state without emitting an `onChange`. Used when
+   * the canonical query changes elsewhere (e.g. the query modal) and the bar must
+   * reflect the new sort.
+   */
+  setState(state: SortState): void {
+    this.field = state.field;
+    this.direction = state.direction;
+    this.fieldSelect.value = this.field;
+    this.updateDirectionButton();
+  }
+
   destroy(): void {
     this.root.remove();
   }

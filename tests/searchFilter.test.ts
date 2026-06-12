@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-    filterTasksBySearch,
-    getUniqueTags,
-    normalizeTag,
-    type SearchState,
-} from '../src/utils/searchFilter';
+import { getUniqueTags, normalizeTag } from '../src/utils/searchFilter';
 import type { Task } from '../src/services/TasksIntegration';
 
 // Helper to create a mock task
@@ -27,10 +22,6 @@ function createTask(overrides: Partial<Task> = {}): Task {
         originalMarkdown: '- [ ] Test task',
         ...overrides,
     };
-}
-
-function state(overrides: Partial<SearchState> = {}): SearchState {
-    return { titleQuery: '', selectedTags: [], ...overrides };
 }
 
 describe('normalizeTag', () => {
@@ -72,100 +63,5 @@ describe('getUniqueTags', () => {
     it('sorts case-insensitively', () => {
         const tasks = [createTask({ tags: ['Zebra', 'apple', 'Banana'] })];
         expect(getUniqueTags(tasks)).toEqual(['apple', 'Banana', 'Zebra']);
-    });
-});
-
-describe('filterTasksBySearch', () => {
-    it('returns all tasks for an empty state', () => {
-        const tasks = [createTask(), createTask({ id: '2' })];
-        const result = filterTasksBySearch(tasks, state());
-        expect(result).toHaveLength(2);
-    });
-
-    it('returns a copy, not the same array reference', () => {
-        const tasks = [createTask()];
-        const result = filterTasksBySearch(tasks, state());
-        expect(result).not.toBe(tasks);
-    });
-
-    describe('title query', () => {
-        it('matches description substring case-insensitively', () => {
-            const tasks = [
-                createTask({ description: 'Write documentation' }),
-                createTask({ id: '2', description: 'Fix bugs' }),
-            ];
-            const result = filterTasksBySearch(tasks, state({ titleQuery: 'WRITE' }));
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe('1');
-        });
-
-        it('trims surrounding whitespace from the query', () => {
-            const tasks = [
-                createTask({ description: 'Write docs' }),
-                createTask({ id: '2', description: 'Fix bugs' }),
-            ];
-            const result = filterTasksBySearch(tasks, state({ titleQuery: '  write  ' }));
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe('1');
-        });
-
-        it('returns nothing when no description matches', () => {
-            const tasks = [createTask({ description: 'abc' })];
-            const result = filterTasksBySearch(tasks, state({ titleQuery: 'xyz' }));
-            expect(result).toHaveLength(0);
-        });
-    });
-
-    describe('tag filter', () => {
-        it('matches a single selected tag', () => {
-            const tasks = [
-                createTask({ tags: ['work'] }),
-                createTask({ id: '2', tags: ['home'] }),
-            ];
-            const result = filterTasksBySearch(tasks, state({ selectedTags: ['work'] }));
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe('1');
-        });
-
-        it('uses OR across multiple selected tags', () => {
-            const tasks = [
-                createTask({ id: '1', tags: ['work'] }),
-                createTask({ id: '2', tags: ['home'] }),
-                createTask({ id: '3', tags: ['urgent'] }),
-            ];
-            const result = filterTasksBySearch(
-                tasks,
-                state({ selectedTags: ['work', 'home'] }),
-            );
-            expect(result.map((t) => t.id)).toEqual(['1', '2']);
-        });
-
-        it('normalizes #-prefixed selections against bare task tags', () => {
-            const tasks = [createTask({ tags: ['work'] })];
-            const result = filterTasksBySearch(tasks, state({ selectedTags: ['#work'] }));
-            expect(result).toHaveLength(1);
-        });
-
-        it('excludes tasks with no tags when a tag is selected', () => {
-            const tasks = [createTask({ tags: [] })];
-            const result = filterTasksBySearch(tasks, state({ selectedTags: ['work'] }));
-            expect(result).toHaveLength(0);
-        });
-    });
-
-    describe('combined title AND tags', () => {
-        it('requires both the title and a tag to match', () => {
-            const tasks = [
-                createTask({ id: '1', description: 'Write docs', tags: ['work'] }),
-                createTask({ id: '2', description: 'Write docs', tags: ['home'] }),
-                createTask({ id: '3', description: 'Fix bugs', tags: ['work'] }),
-            ];
-            const result = filterTasksBySearch(
-                tasks,
-                state({ titleQuery: 'write', selectedTags: ['work'] }),
-            );
-            expect(result).toHaveLength(1);
-            expect(result[0].id).toBe('1');
-        });
     });
 });

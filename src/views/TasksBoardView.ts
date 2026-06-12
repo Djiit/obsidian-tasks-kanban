@@ -47,6 +47,7 @@ export class TasksBoardView extends ItemView {
     // Create the Kanban board
     this.kanbanBoard = new KanbanBoard(
       containerEl,
+      this.app,
       this.tasksIntegration,
       this.persistence,
     );

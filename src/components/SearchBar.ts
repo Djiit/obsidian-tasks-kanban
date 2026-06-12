@@ -115,6 +115,23 @@ export class SearchBar {
     };
   }
 
+  /**
+   * Set the bar to the given state without emitting an `onChange`. Used when the
+   * canonical query changes elsewhere (e.g. the query modal) and the bar must
+   * reflect the new title and tag selection.
+   *
+   * Selected tags are kept even if not currently in `availableTags` (the query
+   * may reference a tag that no task carries right now); they will show in the
+   * menu once {@link setTags} surfaces them and otherwise still count as active.
+   */
+  setState(state: SearchState): void {
+    this.titleQuery = state.titleQuery;
+    this.titleInput.value = state.titleQuery;
+    this.selectedTags = new Set(state.selectedTags);
+    this.renderTagsMenu();
+    this.updateTagsButtonLabel();
+  }
+
   destroy(): void {
     if (this.debounceTimer !== null) {
       window.clearTimeout(this.debounceTimer);

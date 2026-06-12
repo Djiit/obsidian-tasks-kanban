@@ -1,16 +1,25 @@
+import { setIcon, type App } from "obsidian";
+
 import type { Task } from "../services/TasksIntegration";
 import { TasksIntegration } from "../services/TasksIntegration";
 import { KanbanColumn } from "./KanbanColumn";
 import { SearchBar } from "./SearchBar";
 import { SortBar } from "./SortBar";
-import { TaskFilter } from "../filters/TaskFilter";
+import { QueryModal } from "./QueryModal";
 import { buildColumns } from "../utils/statusColumns";
+import { getUniqueTags } from "../utils/searchFilter";
 import {
-  filterTasksBySearch,
-  getUniqueTags,
-  type SearchState,
-} from "../utils/searchFilter";
-import { sortTasks, type SortState } from "../utils/sortTasks";
+  applyBoardQuery,
+  getSort,
+  getTags,
+  getTitle,
+  parseQuery,
+  serializeQuery,
+  withSort,
+  withTags,
+  withTitle,
+  type BoardQuery,
+} from "../query/boardQuery";
 import type { BoardStatePersistence } from "../types/persistence";
 
 export type { KanbanColumnConfig } from "../utils/statusColumns";
@@ -20,75 +29,108 @@ export type { KanbanColumnConfig } from "../utils/statusColumns";
  */
 export class KanbanBoard {
   private container: HTMLElement;
+  private app: App;
   private boardEl!: HTMLElement;
   private tasksIntegration: TasksIntegration;
   private columns: KanbanColumn[] = [];
   private searchBar: SearchBar;
   private sortBar: SortBar;
   private persistence: BoardStatePersistence;
-  /** Source of truth: every task last received, before search filtering. */
+  /** Source of truth: every task last received, before query filtering. */
   private allTasks: Task[] = [];
-  /** The tasks currently displayed (after search filtering and sorting). */
+  /** The tasks currently displayed (after the query's filtering and sorting). */
   private tasks: Task[] = [];
-  private searchState: SearchState;
-  private sortState: SortState;
+  /** The canonical board query: filters + sort. Bars edit slices of it. */
+  private boardQuery: BoardQuery;
   /** Column IDs currently folded; persisted across reopens. */
   private collapsedColumns: Set<string>;
-  private filter: TaskFilter;
 
   constructor(
     container: HTMLElement,
+    app: App,
     tasksIntegration: TasksIntegration,
     persistence: BoardStatePersistence,
   ) {
     this.container = container;
+    this.app = app;
     this.tasksIntegration = tasksIntegration;
     this.persistence = persistence;
-    this.filter = new TaskFilter();
 
-    // Hydrate from persisted state. The title query always starts empty —
-    // it is intentionally not persisted.
+    // Hydrate the canonical query from the persisted query string.
     const initial = persistence.get();
-    this.sortState = initial.sortState;
-    this.searchState = {
-      titleQuery: "",
-      selectedTags: [...initial.selectedTags],
-    };
+    this.boardQuery = parseQuery(initial.query).query;
     this.collapsedColumns = new Set(initial.collapsedColumns);
 
-    // Search and sort controls sit above the board, in a shared header row.
+    // Search, sort, and query-edit controls sit above the board in a shared row.
     const header = this.container.createDiv({ cls: "tasks-kanban-header" });
     this.searchBar = new SearchBar(
       header,
       (state) => {
-        this.searchState = state;
+        this.boardQuery = withTitle(
+          withTags(this.boardQuery, state.selectedTags),
+          state.titleQuery,
+        );
         this.persistState();
-        this.applySearch();
+        this.applyQuery();
       },
-      initial.selectedTags,
+      getTags(this.boardQuery),
     );
+    // Seed the title input from the query (description slice).
+    this.searchBar.setState({
+      titleQuery: getTitle(this.boardQuery),
+      selectedTags: getTags(this.boardQuery),
+    });
     this.sortBar = new SortBar(
       header,
       (state) => {
-        this.sortState = state;
+        this.boardQuery = withSort(this.boardQuery, state);
         this.persistState();
-        this.applySearch();
+        this.applyQuery();
       },
-      initial.sortState,
+      getSort(this.boardQuery),
     );
+
+    this.createQueryButton(header);
 
     // Initialize default columns (into their own board sub-element)
     this.initColumns();
   }
 
   /**
-   * Persist the slice of state that survives reopens: sort state and selected
-   * tags. The title query is deliberately excluded.
+   * Add the "Edit query" header button that opens the raw-query modal.
+   */
+  private createQueryButton(header: HTMLElement) {
+    const button = header.createEl("button", {
+      cls: "tasks-kanban-query-button",
+      attr: { type: "button", "aria-label": "Edit query" },
+    });
+    setIcon(button, "filter");
+    button.addEventListener("click", () => this.openQueryModal());
+  }
+
+  /**
+   * Open the query modal, then push the edited query into the bars and re-render.
+   */
+  private openQueryModal() {
+    new QueryModal(this.app, this.boardQuery, (query) => {
+      this.boardQuery = query;
+      this.searchBar.setState({
+        titleQuery: getTitle(query),
+        selectedTags: getTags(query),
+      });
+      this.sortBar.setState(getSort(query));
+      this.persistState();
+      this.applyQuery();
+    }).open();
+  }
+
+  /**
+   * Persist the slice of state that survives reopens: the canonical query string
+   * and the set of folded columns.
    */
   private persistState() {
     void this.persistence.save({
-      sortState: this.sortState,
-      selectedTags: this.searchState.selectedTags,
+      query: serializeQuery(this.boardQuery),
       collapsedColumns: [...this.collapsedColumns],
     });
   }
@@ -136,7 +178,7 @@ export class KanbanBoard {
     // Remove duplicates by ID
     this.allTasks = this.removeDuplicateTasks(tasks);
     this.searchBar.setTags(getUniqueTags(this.allTasks));
-    this.applySearch();
+    this.applyQuery();
   }
 
   /**
@@ -155,11 +197,10 @@ export class KanbanBoard {
   }
 
   /**
-   * Apply the current search state to the source tasks and re-render.
+   * Apply the canonical query (filter + sort) to the source tasks and re-render.
    */
-  private applySearch() {
-    const filtered = filterTasksBySearch(this.allTasks, this.searchState);
-    this.tasks = sortTasks(filtered, this.sortState);
+  private applyQuery() {
+    this.tasks = applyBoardQuery(this.allTasks, this.boardQuery);
     this.distributeTasks();
   }
 
@@ -173,16 +214,6 @@ export class KanbanBoard {
       );
       column.updateTasks(statusTasks);
     }
-  }
-
-  /**
-   * Apply a query-syntax filter to all tasks (Tasks query syntax).
-   * Operates on the unfiltered source so repeated calls don't lose tasks.
-   */
-  applyFilter(filterString: string) {
-    const filteredTasks = this.filter.filterTasks(this.allTasks, filterString);
-    this.tasks = filteredTasks;
-    this.distributeTasks();
   }
 
   /**

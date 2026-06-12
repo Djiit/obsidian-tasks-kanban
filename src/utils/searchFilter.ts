@@ -36,38 +36,3 @@ export function getUniqueTags(tasks: Task[]): string[] {
     a.localeCompare(b, undefined, { sensitivity: "base" }),
   );
 }
-
-/**
- * Filter tasks by the search bar state.
- *
- * - Title: if a non-empty query is set, keep tasks whose description contains it
- *   (case-insensitive, trimmed substring match).
- * - Tags: if any tags are selected, keep tasks carrying at least one of them (OR).
- * - The two constraints are combined with AND.
- *
- * An empty state (no query, no tags) returns a shallow copy of all tasks.
- */
-export function filterTasksBySearch(tasks: Task[], state: SearchState): Task[] {
-  const query = state.titleQuery.trim().toLowerCase();
-  const selected = new Set(state.selectedTags.map(normalizeTag));
-
-  if (query === "" && selected.size === 0) {
-    return [...tasks];
-  }
-
-  return tasks.filter((task) => {
-    if (query !== "" && !task.description.toLowerCase().includes(query)) {
-      return false;
-    }
-
-    if (selected.size > 0) {
-      const taskTags = task.tags ?? [];
-      const hasMatch = taskTags.some((tag) => selected.has(normalizeTag(tag)));
-      if (!hasMatch) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-}

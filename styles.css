@@ -550,3 +550,57 @@
         cursor: pointer;
     }
 }
+
+/* Edit-query button (header) */
+.tasks-kanban-query-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.tasks-kanban-query-button:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+/* Query modal */
+.tasks-kanban-query-modal-help {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+    margin: 0 0 12px;
+}
+
+.tasks-kanban-query-modal-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-small);
+    resize: vertical;
+}
+
+.tasks-kanban-query-modal-errors {
+    margin-top: 8px;
+}
+
+.tasks-kanban-query-modal-error {
+    color: var(--text-error);
+    font-size: var(--font-ui-smaller);
+}
+
+.tasks-kanban-query-modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
