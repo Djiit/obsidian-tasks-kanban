@@ -1,8 +1,14 @@
 import type { Task } from '../services/TasksIntegration';
 import { TasksIntegration } from '../services/TasksIntegration';
 import { KanbanColumn } from './KanbanColumn';
+import { SearchBar } from './SearchBar';
 import { TaskFilter } from '../filters/TaskFilter';
 import { buildColumns } from '../utils/statusColumns';
+import {
+    filterTasksBySearch,
+    getUniqueTags,
+    type SearchState,
+} from '../utils/searchFilter';
 
 export type { KanbanColumnConfig } from '../utils/statusColumns';
 
@@ -11,9 +17,15 @@ export type { KanbanColumnConfig } from '../utils/statusColumns';
  */
 export class KanbanBoard {
     private container: HTMLElement;
+    private boardEl!: HTMLElement;
     private tasksIntegration: TasksIntegration;
     private columns: KanbanColumn[] = [];
+    private searchBar: SearchBar;
+    /** Source of truth: every task last received, before search filtering. */
+    private allTasks: Task[] = [];
+    /** The tasks currently displayed (after search filtering). */
     private tasks: Task[] = [];
+    private searchState: SearchState = { titleQuery: '', selectedTags: [] };
     private filter: TaskFilter;
 
     constructor(container: HTMLElement, tasksIntegration: TasksIntegration) {
@@ -21,7 +33,13 @@ export class KanbanBoard {
         this.tasksIntegration = tasksIntegration;
         this.filter = new TaskFilter();
 
-        // Initialize default columns
+        // Search bar sits above the board.
+        this.searchBar = new SearchBar(this.container, (state) => {
+            this.searchState = state;
+            this.applySearch();
+        });
+
+        // Initialize default columns (into their own board sub-element)
         this.initColumns();
     }
 
@@ -29,12 +47,11 @@ export class KanbanBoard {
      * Initialize columns derived from the vault's configured statuses
      */
     private initColumns() {
-        this.container.empty();
-        this.container.addClass('tasks-kanban-board');
+        this.boardEl = this.container.createDiv({ cls: 'tasks-kanban-board' });
 
         const columnConfigs = buildColumns(this.tasksIntegration.getStatuses());
         for (const config of columnConfigs) {
-            const columnEl = this.container.createDiv({
+            const columnEl = this.boardEl.createDiv({
                 cls: 'tasks-kanban-column',
             });
             const column = new KanbanColumn(columnEl, config, this.tasksIntegration);
@@ -46,7 +63,7 @@ export class KanbanBoard {
      * Render the board with current tasks
      */
     render() {
-        this.updateTasks(this.tasks);
+        this.updateTasks(this.allTasks);
     }
 
     /**
@@ -54,9 +71,9 @@ export class KanbanBoard {
      */
     updateTasks(tasks: Task[]) {
         // Remove duplicates by ID
-        const uniqueTasks = this.removeDuplicateTasks(tasks);
-        this.tasks = uniqueTasks;
-        this.distributeTasks();
+        this.allTasks = this.removeDuplicateTasks(tasks);
+        this.searchBar.setTags(getUniqueTags(this.allTasks));
+        this.applySearch();
     }
 
     /**
@@ -75,6 +92,14 @@ export class KanbanBoard {
     }
 
     /**
+     * Apply the current search state to the source tasks and re-render.
+     */
+    private applySearch() {
+        this.tasks = filterTasksBySearch(this.allTasks, this.searchState);
+        this.distributeTasks();
+    }
+
+    /**
      * Distribute tasks across columns based on their status
      */
     private distributeTasks() {
@@ -87,17 +112,20 @@ export class KanbanBoard {
     }
 
     /**
-     * Apply a filter to all tasks
+     * Apply a query-syntax filter to all tasks (Tasks query syntax).
+     * Operates on the unfiltered source so repeated calls don't lose tasks.
      */
     applyFilter(filterString: string) {
-        const filteredTasks = this.filter.filterTasks(this.tasks, filterString);
-        this.updateTasks(filteredTasks);
+        const filteredTasks = this.filter.filterTasks(this.allTasks, filterString);
+        this.tasks = filteredTasks;
+        this.distributeTasks();
     }
 
     /**
      * Clean up the board
      */
     destroy() {
+        this.searchBar.destroy();
         for (const column of this.columns) {
             column.destroy();
         }
