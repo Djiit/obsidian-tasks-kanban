@@ -28,9 +28,11 @@ export class SearchBar {
     constructor(
         container: HTMLElement,
         onChange: (state: SearchState) => void,
+        initialSelectedTags: string[] = [],
     ) {
         this.container = container;
         this.onChange = onChange;
+        this.selectedTags = new Set(initialSelectedTags);
 
         this.root = this.container.createDiv({ cls: 'tasks-kanban-search' });
 
@@ -78,6 +80,7 @@ export class SearchBar {
         activeDocument.addEventListener('click', this.outsideClickHandler);
 
         this.renderTagsMenu();
+        this.updateTagsButtonLabel();
     }
 
     /**

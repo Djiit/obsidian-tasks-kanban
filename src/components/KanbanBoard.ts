@@ -12,9 +12,9 @@ import {
 } from '../utils/searchFilter';
 import {
     sortTasks,
-    DEFAULT_SORT_STATE,
     type SortState,
 } from '../utils/sortTasks';
+import type { BoardStatePersistence } from '../types/persistence';
 
 export type { KanbanColumnConfig } from '../utils/statusColumns';
 
@@ -28,32 +28,68 @@ export class KanbanBoard {
     private columns: KanbanColumn[] = [];
     private searchBar: SearchBar;
     private sortBar: SortBar;
+    private persistence: BoardStatePersistence;
     /** Source of truth: every task last received, before search filtering. */
     private allTasks: Task[] = [];
     /** The tasks currently displayed (after search filtering and sorting). */
     private tasks: Task[] = [];
-    private searchState: SearchState = { titleQuery: '', selectedTags: [] };
-    private sortState: SortState = DEFAULT_SORT_STATE;
+    private searchState: SearchState;
+    private sortState: SortState;
     private filter: TaskFilter;
 
-    constructor(container: HTMLElement, tasksIntegration: TasksIntegration) {
+    constructor(
+        container: HTMLElement,
+        tasksIntegration: TasksIntegration,
+        persistence: BoardStatePersistence,
+    ) {
         this.container = container;
         this.tasksIntegration = tasksIntegration;
+        this.persistence = persistence;
         this.filter = new TaskFilter();
+
+        // Hydrate from persisted state. The title query always starts empty —
+        // it is intentionally not persisted.
+        const initial = persistence.get();
+        this.sortState = initial.sortState;
+        this.searchState = {
+            titleQuery: '',
+            selectedTags: [...initial.selectedTags],
+        };
 
         // Search and sort controls sit above the board, in a shared header row.
         const header = this.container.createDiv({ cls: 'tasks-kanban-header' });
-        this.searchBar = new SearchBar(header, (state) => {
-            this.searchState = state;
-            this.applySearch();
-        });
-        this.sortBar = new SortBar(header, (state) => {
-            this.sortState = state;
-            this.applySearch();
-        });
+        this.searchBar = new SearchBar(
+            header,
+            (state) => {
+                this.searchState = state;
+                this.persistState();
+                this.applySearch();
+            },
+            initial.selectedTags,
+        );
+        this.sortBar = new SortBar(
+            header,
+            (state) => {
+                this.sortState = state;
+                this.persistState();
+                this.applySearch();
+            },
+            initial.sortState,
+        );
 
         // Initialize default columns (into their own board sub-element)
         this.initColumns();
+    }
+
+    /**
+     * Persist the slice of state that survives reopens: sort state and selected
+     * tags. The title query is deliberately excluded.
+     */
+    private persistState() {
+        void this.persistence.save({
+            sortState: this.sortState,
+            selectedTags: this.searchState.selectedTags,
+        });
     }
 
     /**

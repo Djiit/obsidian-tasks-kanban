@@ -2,18 +2,25 @@ import { ItemView, type WorkspaceLeaf } from 'obsidian';
 
 import { TasksIntegration, type Task } from '../services/TasksIntegration';
 import { KanbanBoard } from '../components/KanbanBoard';
+import type { BoardStatePersistence } from '../types/persistence';
 
 /**
  * The Kanban board view for displaying Tasks
  */
 export class TasksBoardView extends ItemView {
     private tasksIntegration: TasksIntegration;
+    private persistence: BoardStatePersistence;
     private kanbanBoard: KanbanBoard | null = null;
     private unsubscribe: (() => void) | null = null;
 
-    constructor(leaf: WorkspaceLeaf, tasksIntegration: TasksIntegration) {
+    constructor(
+        leaf: WorkspaceLeaf,
+        tasksIntegration: TasksIntegration,
+        persistence: BoardStatePersistence,
+    ) {
         super(leaf);
         this.tasksIntegration = tasksIntegration;
+        this.persistence = persistence;
     }
 
     getViewType(): string {
@@ -41,6 +48,7 @@ export class TasksBoardView extends ItemView {
         this.kanbanBoard = new KanbanBoard(
             containerEl,
             this.tasksIntegration,
+            this.persistence,
         );
 
         // Subscribe to tasks updates

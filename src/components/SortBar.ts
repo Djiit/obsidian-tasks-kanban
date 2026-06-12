@@ -25,9 +25,15 @@ export class SortBar {
     private field: SortField = DEFAULT_SORT_STATE.field;
     private direction: SortDirection = DEFAULT_SORT_STATE.direction;
 
-    constructor(container: HTMLElement, onChange: (state: SortState) => void) {
+    constructor(
+        container: HTMLElement,
+        onChange: (state: SortState) => void,
+        initial: SortState = DEFAULT_SORT_STATE,
+    ) {
         this.container = container;
         this.onChange = onChange;
+        this.field = initial.field;
+        this.direction = initial.direction;
 
         this.root = this.container.createDiv({ cls: 'tasks-kanban-sort' });
 
