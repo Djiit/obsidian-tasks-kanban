@@ -18,6 +18,7 @@
 ### Workflow
 
 - Always ship tests with your code
+- Always run `npm run format` before finishing to format your changes with Prettier
 - Always run linters, tests and build scripts to validate your work
 - Use Test Driven Development (TDD) until asked otherwise
 - Prefer minimal, focused changes

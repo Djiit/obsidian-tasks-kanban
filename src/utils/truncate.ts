@@ -5,7 +5,7 @@
  */
 export const MAX_CARD_DESCRIPTION_CHARS = 120;
 
-const ELLIPSIS = '…';
+const ELLIPSIS = "…";
 
 /**
  * Truncate a string to at most `limit` visible characters, appending an
@@ -15,15 +15,18 @@ const ELLIPSIS = '…';
  * characters such as emoji are never split across the boundary. Any whitespace
  * left dangling at the cut is trimmed before the ellipsis is added.
  */
-export function truncate(text: string, limit: number = MAX_CARD_DESCRIPTION_CHARS): string {
-    if (limit <= 0) {
-        return ELLIPSIS;
-    }
+export function truncate(
+  text: string,
+  limit: number = MAX_CARD_DESCRIPTION_CHARS,
+): string {
+  if (limit <= 0) {
+    return ELLIPSIS;
+  }
 
-    const chars = Array.from(text);
-    if (chars.length <= limit) {
-        return text;
-    }
+  const chars = Array.from(text);
+  if (chars.length <= limit) {
+    return text;
+  }
 
-    return chars.slice(0, limit).join('').trimEnd() + ELLIPSIS;
+  return chars.slice(0, limit).join("").trimEnd() + ELLIPSIS;
 }

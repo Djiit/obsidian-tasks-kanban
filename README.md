@@ -13,9 +13,17 @@ A Kanban board view plugin for Obsidian that displays Tasks in a visual board la
 
 ## Installation
 
+### From the Community Plugins listing (recommended)
+
 1. Install the [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin from Obsidian Community Plugins
-2. Install this plugin (manual installation for now)
+2. Open **Settings → Community plugins → Browse**, search for **Tasks Kanban**, and click **Install** — or install directly from the [Community listing page](https://community.obsidian.md/plugins/tasks-kanban)
 3. Enable both plugins in Obsidian Settings
+
+### Manual installation
+
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/Djiit/obsidian-tasks-kanban/releases/latest)
+2. Copy them into your vault's `.obsidian/plugins/tasks-kanban/` folder
+3. Reload Obsidian and enable both the Tasks and Tasks Kanban plugins in Settings
 
 ## Usage
 

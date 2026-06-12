@@ -1,4 +1,4 @@
-import type { Task } from '../services/TasksIntegration';
+import type { Task } from "../services/TasksIntegration";
 
 /**
  * A single metadata badge shown on a card.
@@ -8,16 +8,16 @@ import type { Task } from '../services/TasksIntegration';
  * `title` is an optional tooltip (e.g. resolved dependency descriptions).
  */
 export interface Chip {
-    emoji: string;
-    label: string;
-    modifier: string;
-    title?: string;
+  emoji: string;
+  label: string;
+  modifier: string;
+  title?: string;
 }
 
 /**
  * Status types that count as "closed" for dependency/overdue purposes.
  */
-const CLOSED_STATUS_TYPES = new Set(['DONE', 'CANCELLED']);
+const CLOSED_STATUS_TYPES = new Set(["DONE", "CANCELLED"]);
 
 /**
  * Matches an Obsidian tag token at a word boundary: start of string or after
@@ -38,38 +38,36 @@ const TAG_TOKEN = /(^|\s)(#[\w\-/\p{L}\p{N}]+)/gu;
  * the original description is returned so the card is never blank.
  */
 export function stripTags(description: string, tags: string[]): string {
-    if (!tags || tags.length === 0) {
-        return description;
-    }
+  if (!tags || tags.length === 0) {
+    return description;
+  }
 
-    // task.tags may or may not carry a leading '#' depending on the source;
-    // normalise to bare bodies for comparison.
-    const known = new Set(
-        tags.map((t) => (t.startsWith('#') ? t.slice(1) : t)),
-    );
+  // task.tags may or may not carry a leading '#' depending on the source;
+  // normalise to bare bodies for comparison.
+  const known = new Set(tags.map((t) => (t.startsWith("#") ? t.slice(1) : t)));
 
-    const stripped = description
-        .replace(TAG_TOKEN, (match, lead: string, token: string) => {
-            const body = token.slice(1);
-            return known.has(body) ? lead : match;
-        })
-        .replace(/\s+/g, ' ')
-        .trim();
+  const stripped = description
+    .replace(TAG_TOKEN, (match, lead: string, token: string) => {
+      const body = token.slice(1);
+      return known.has(body) ? lead : match;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
 
-    return stripped.length > 0 ? stripped : description;
+  return stripped.length > 0 ? stripped : description;
 }
 
 /**
  * Priority descriptor per obsidian-tasks' Priority enum (0 Highest … 5 Lowest).
  * Index 3 (None/Normal) is intentionally `null` so it renders no chip.
  */
-export const PRIORITY_TABLE: Array<Omit<Chip, 'title'> | null> = [
-    { emoji: '🔺', label: 'Highest', modifier: 'priority-highest' },
-    { emoji: '⏫', label: 'High', modifier: 'priority-high' },
-    { emoji: '🔼', label: 'Medium', modifier: 'priority-medium' },
-    null,
-    { emoji: '🔽', label: 'Low', modifier: 'priority-low' },
-    { emoji: '⏬', label: 'Lowest', modifier: 'priority-lowest' },
+export const PRIORITY_TABLE: Array<Omit<Chip, "title"> | null> = [
+  { emoji: "🔺", label: "Highest", modifier: "priority-highest" },
+  { emoji: "⏫", label: "High", modifier: "priority-high" },
+  { emoji: "🔼", label: "Medium", modifier: "priority-medium" },
+  null,
+  { emoji: "🔽", label: "Low", modifier: "priority-low" },
+  { emoji: "⏬", label: "Lowest", modifier: "priority-lowest" },
 ];
 
 /**
@@ -78,16 +76,16 @@ export const PRIORITY_TABLE: Array<Omit<Chip, 'title'> | null> = [
  * any out-of-range value produce no chip.
  */
 export function getPriorityChip(
-    priority: string | number | null | undefined,
+  priority: string | number | null | undefined,
 ): Chip | null {
-    if (priority === null || priority === undefined || priority === '') {
-        return null;
-    }
-    const n = Number(priority);
-    if (!Number.isInteger(n) || n < 0 || n >= PRIORITY_TABLE.length) {
-        return null;
-    }
-    return PRIORITY_TABLE[n];
+  if (priority === null || priority === undefined || priority === "") {
+    return null;
+  }
+  const n = Number(priority);
+  if (!Number.isInteger(n) || n < 0 || n >= PRIORITY_TABLE.length) {
+    return null;
+  }
+  return PRIORITY_TABLE[n];
 }
 
 /**
@@ -97,41 +95,41 @@ export function getPriorityChip(
  * interpret; never throws.
  */
 export function formatDate(value: unknown): string | null {
-    if (value === null || value === undefined) {
-        return null;
-    }
-
-    // Already a plain date string (optionally with a time component).
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-            return trimmed.slice(0, 10);
-        }
-        const parsed = new Date(trimmed);
-        return Number.isNaN(parsed.getTime()) ? null : toLocalISODate(parsed);
-    }
-
-    if (value instanceof Date) {
-        return Number.isNaN(value.getTime()) ? null : toLocalISODate(value);
-    }
-
-    // Moment-like object.
-    if (typeof value === 'object') {
-        const obj = value as {
-            format?: (fmt: string) => string;
-            toISOString?: () => string;
-        };
-        if (typeof obj.format === 'function') {
-            const out = obj.format('YYYY-MM-DD');
-            return typeof out === 'string' && out.length > 0 ? out : null;
-        }
-        if (typeof obj.toISOString === 'function') {
-            const iso = obj.toISOString();
-            return typeof iso === 'string' ? iso.slice(0, 10) : null;
-        }
-    }
-
+  if (value === null || value === undefined) {
     return null;
+  }
+
+  // Already a plain date string (optionally with a time component).
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : toLocalISODate(parsed);
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : toLocalISODate(value);
+  }
+
+  // Moment-like object.
+  if (typeof value === "object") {
+    const obj = value as {
+      format?: (fmt: string) => string;
+      toISOString?: () => string;
+    };
+    if (typeof obj.format === "function") {
+      const out = obj.format("YYYY-MM-DD");
+      return typeof out === "string" && out.length > 0 ? out : null;
+    }
+    if (typeof obj.toISOString === "function") {
+      const iso = obj.toISOString();
+      return typeof iso === "string" ? iso.slice(0, 10) : null;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -139,10 +137,10 @@ export function formatDate(value: unknown): string | null {
  * off-by-one that `toISOString()` introduces for non-UTC zones.
  */
 function toLocalISODate(d: Date): string {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -150,24 +148,24 @@ function toLocalISODate(d: Date): string {
  * reads created → start → scheduled → due → done → cancelled left to right.
  */
 const DATE_SPECS: Array<{
-    field: keyof Pick<
-        Task,
-        | 'createdDate'
-        | 'startDate'
-        | 'scheduledDate'
-        | 'dueDate'
-        | 'doneDate'
-        | 'cancelledDate'
-    >;
-    emoji: string;
-    modifier: string;
+  field: keyof Pick<
+    Task,
+    | "createdDate"
+    | "startDate"
+    | "scheduledDate"
+    | "dueDate"
+    | "doneDate"
+    | "cancelledDate"
+  >;
+  emoji: string;
+  modifier: string;
 }> = [
-    { field: 'createdDate', emoji: '➕', modifier: 'date-created' },
-    { field: 'startDate', emoji: '🛫', modifier: 'date-start' },
-    { field: 'scheduledDate', emoji: '⏳', modifier: 'date-scheduled' },
-    { field: 'dueDate', emoji: '📅', modifier: 'date-due' },
-    { field: 'doneDate', emoji: '✅', modifier: 'date-done' },
-    { field: 'cancelledDate', emoji: '❌', modifier: 'date-cancelled' },
+  { field: "createdDate", emoji: "➕", modifier: "date-created" },
+  { field: "startDate", emoji: "🛫", modifier: "date-start" },
+  { field: "scheduledDate", emoji: "⏳", modifier: "date-scheduled" },
+  { field: "dueDate", emoji: "📅", modifier: "date-due" },
+  { field: "doneDate", emoji: "✅", modifier: "date-done" },
+  { field: "cancelledDate", emoji: "❌", modifier: "date-cancelled" },
 ];
 
 /**
@@ -177,37 +175,43 @@ const DATE_SPECS: Array<{
  * `now` is injectable for deterministic tests; it defaults to the current time.
  */
 export function getDateChips(task: Task, now: Date = new Date()): Chip[] {
-    const chips: Chip[] = [];
-    const todayStart = startOfDay(now);
+  const chips: Chip[] = [];
+  const todayStart = startOfDay(now);
 
-    for (const spec of DATE_SPECS) {
-        const formatted = formatDate(task[spec.field]);
-        if (!formatted) {
-            continue;
-        }
-
-        const chip: Chip = {
-            emoji: spec.emoji,
-            label: formatted,
-            modifier: spec.modifier,
-        };
-
-        if (spec.field === 'dueDate' && !CLOSED_STATUS_TYPES.has(task.status.type)) {
-            const due = new Date(`${formatted}T00:00:00`);
-            if (!Number.isNaN(due.getTime()) && due.getTime() < todayStart.getTime()) {
-                chip.modifier = 'date-due-overdue';
-                chip.title = 'Overdue';
-            }
-        }
-
-        chips.push(chip);
+  for (const spec of DATE_SPECS) {
+    const formatted = formatDate(task[spec.field]);
+    if (!formatted) {
+      continue;
     }
 
-    return chips;
+    const chip: Chip = {
+      emoji: spec.emoji,
+      label: formatted,
+      modifier: spec.modifier,
+    };
+
+    if (
+      spec.field === "dueDate" &&
+      !CLOSED_STATUS_TYPES.has(task.status.type)
+    ) {
+      const due = new Date(`${formatted}T00:00:00`);
+      if (
+        !Number.isNaN(due.getTime()) &&
+        due.getTime() < todayStart.getTime()
+      ) {
+        chip.modifier = "date-due-overdue";
+        chip.title = "Overdue";
+      }
+    }
+
+    chips.push(chip);
+  }
+
+  return chips;
 }
 
 function startOfDay(d: Date): Date {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 /**
@@ -218,16 +222,16 @@ function startOfDay(d: Date): Date {
  *   directly; the tooltip lists any tasks that depend on it.
  */
 export interface DependencyChips {
-    blocked: Chip | null;
-    dependsOn: Chip | null;
-    id: Chip | null;
+  blocked: Chip | null;
+  dependsOn: Chip | null;
+  id: Chip | null;
 }
 
 /**
  * Read a task's dependency id list, tolerating either field name.
  */
 function readDependsOn(task: Task): string[] {
-    return task.dependsOn ?? task.blockedBy ?? [];
+  return task.dependsOn ?? task.blockedBy ?? [];
 }
 
 /**
@@ -239,71 +243,74 @@ function readDependsOn(task: Task): string[] {
  * Missing ids (no matching task) are listed but treated as non-blocking, since
  * an unknown task's state can't be verified.
  */
-export function getDependencyChips(task: Task, allTasks: Task[]): DependencyChips {
-    const byId = new Map<string, Task[]>();
-    for (const t of allTasks) {
-        if (t.id) {
-            const bucket = byId.get(t.id);
-            if (bucket) {
-                bucket.push(t);
-            } else {
-                byId.set(t.id, [t]);
-            }
-        }
+export function getDependencyChips(
+  task: Task,
+  allTasks: Task[],
+): DependencyChips {
+  const byId = new Map<string, Task[]>();
+  for (const t of allTasks) {
+    if (t.id) {
+      const bucket = byId.get(t.id);
+      if (bucket) {
+        bucket.push(t);
+      } else {
+        byId.set(t.id, [t]);
+      }
     }
+  }
 
-    const deps = readDependsOn(task);
+  const deps = readDependsOn(task);
 
-    // dependsOn chip + blocked state
-    let dependsOn: Chip | null = null;
-    let blocked = false;
-    if (deps.length > 0) {
-        const titleParts: string[] = [];
-        for (const depId of deps) {
-            const matches = byId.get(depId) ?? [];
-            if (matches.length === 0) {
-                titleParts.push(`${depId} (missing)`);
-                continue;
-            }
-            titleParts.push(matches.map((m) => m.description).join(' / '));
+  // dependsOn chip + blocked state
+  let dependsOn: Chip | null = null;
+  let blocked = false;
+  if (deps.length > 0) {
+    const titleParts: string[] = [];
+    for (const depId of deps) {
+      const matches = byId.get(depId) ?? [];
+      if (matches.length === 0) {
+        titleParts.push(`${depId} (missing)`);
+        continue;
+      }
+      titleParts.push(matches.map((m) => m.description).join(" / "));
 
-            // A task can't block itself; skip self-references for blocked state.
-            if (depId === task.id) {
-                continue;
-            }
-            if (matches.some((m) => !CLOSED_STATUS_TYPES.has(m.status.type))) {
-                blocked = true;
-            }
-        }
-        dependsOn = {
-            emoji: '⛔',
-            label: String(deps.length),
-            modifier: 'dep-blocked-by',
-            title: titleParts.join(', '),
-        };
+      // A task can't block itself; skip self-references for blocked state.
+      if (depId === task.id) {
+        continue;
+      }
+      if (matches.some((m) => !CLOSED_STATUS_TYPES.has(m.status.type))) {
+        blocked = true;
+      }
     }
+    dependsOn = {
+      emoji: "⛔",
+      label: String(deps.length),
+      modifier: "dep-blocked-by",
+      title: titleParts.join(", "),
+    };
+  }
 
-    const blockedChip: Chip | null = blocked
-        ? { emoji: '🔒', label: 'Blocked', modifier: 'dep-blocked' }
-        : null;
+  const blockedChip: Chip | null = blocked
+    ? { emoji: "🔒", label: "Blocked", modifier: "dep-blocked" }
+    : null;
 
-    // id chip: a task has at most one id, so display it directly. The tooltip
-    // surfaces any other tasks that depend on it.
-    let idChip: Chip | null = null;
-    if (task.id) {
-        const dependents = allTasks.filter(
-            (t) => t !== task && readDependsOn(t).includes(task.id),
-        );
-        idChip = {
-            emoji: '🆔',
-            label: task.id,
-            modifier: 'dep-id',
-            title:
-                dependents.length > 0
-                    ? `Blocks: ${dependents.map((t) => t.description).join(', ')}`
-                    : undefined,
-        };
-    }
+  // id chip: a task has at most one id, so display it directly. The tooltip
+  // surfaces any other tasks that depend on it.
+  let idChip: Chip | null = null;
+  if (task.id) {
+    const dependents = allTasks.filter(
+      (t) => t !== task && readDependsOn(t).includes(task.id),
+    );
+    idChip = {
+      emoji: "🆔",
+      label: task.id,
+      modifier: "dep-id",
+      title:
+        dependents.length > 0
+          ? `Blocks: ${dependents.map((t) => t.description).join(", ")}`
+          : undefined,
+    };
+  }
 
-    return { blocked: blockedChip, dependsOn, id: idChip };
+  return { blocked: blockedChip, dependsOn, id: idChip };
 }
