@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.4.1...0.5.0) (2026-06-12)
+
+
+### Features
+
+* add board filtering options ([dd5420e](https://github.com/Djiit/obsidian-tasks-kanban/commit/dd5420eaefe8f062f281602b84fbbb4c08de6943))
+* add priorities, dates, dependencies support ([8392e84](https://github.com/Djiit/obsidian-tasks-kanban/commit/8392e8464feb4c650978da7335dc2e859e801eb8))
+* cap card description length to keep cards from growing vertically ([e25494d](https://github.com/Djiit/obsidian-tasks-kanban/commit/e25494dec47096a0d5ded53a59b48282e12c463f))
+
+
+### Bug Fixes
+
+* track styles.css as a source file instead of gitignoring it ([6414b76](https://github.com/Djiit/obsidian-tasks-kanban/commit/6414b76d0b167e98e5139393349b42593a747789))
+
 ## [0.4.1](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.4.0...0.4.1) (2026-06-11)
 
 
