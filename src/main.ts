@@ -61,6 +61,8 @@ export default class TasksKanbanPlugin extends Plugin {
         ...data?.sortState,
       },
       selectedTags: data?.selectedTags ?? DEFAULT_BOARD_STATE.selectedTags,
+      collapsedColumns:
+        data?.collapsedColumns ?? DEFAULT_BOARD_STATE.collapsedColumns,
     };
   }
 

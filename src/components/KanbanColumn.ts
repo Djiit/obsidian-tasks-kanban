@@ -15,15 +15,22 @@ export class KanbanColumn {
   private dragLeaveHandler: ((e: DragEvent) => void) | null = null;
   private dropHandler: ((e: DragEvent) => void) | null = null;
   private dragEnterHandler: ((e: DragEvent) => void) | null = null;
+  private collapsed: boolean;
+  private onToggleCollapse?: (collapsed: boolean) => void;
+  private headerClickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     container: HTMLElement,
     config: KanbanColumnConfig,
     tasksIntegration: TasksIntegration,
+    collapsed = false,
+    onToggleCollapse?: (collapsed: boolean) => void,
   ) {
     this.container = container;
     this.config = config;
     this.tasksIntegration = tasksIntegration;
+    this.collapsed = collapsed;
+    this.onToggleCollapse = onToggleCollapse;
 
     this.init();
     this.setupDragAndDrop();
@@ -37,10 +44,17 @@ export class KanbanColumn {
     this.container.addClass("tasks-kanban-column");
     this.container.setAttribute("data-status-type", this.config.type);
 
-    // Create header
+    // Create header. Clicking it folds/unfolds the column.
     const header = this.container.createDiv({
       cls: "tasks-kanban-column-header",
     });
+
+    // Fold caret (rotates via CSS depending on collapsed state)
+    header.createSpan({
+      cls: "tasks-kanban-column-caret",
+      text: "▾",
+    });
+
     header.createSpan({
       cls: "tasks-kanban-column-title",
       text: this.config.title,
@@ -59,6 +73,30 @@ export class KanbanColumn {
 
     // Store references
     this.container.setAttribute("data-column-id", this.config.id);
+
+    // Apply the initial fold state and make the header a toggle.
+    this.applyCollapsed();
+    this.headerClickHandler = () => this.toggleCollapsed();
+    header.addEventListener("click", this.headerClickHandler);
+  }
+
+  /**
+   * Reflect the current `collapsed` flag onto the DOM. The narrow-strip
+   * styling and the rotated title live entirely in CSS, keyed off this class.
+   */
+  private applyCollapsed() {
+    this.container.toggleClass("tasks-kanban-column-collapsed", this.collapsed);
+    this.container.setAttribute(
+      "aria-expanded",
+      this.collapsed ? "false" : "true",
+    );
+  }
+
+  /** Flip the fold state, update the DOM, and notify the board to persist. */
+  private toggleCollapsed() {
+    this.collapsed = !this.collapsed;
+    this.applyCollapsed();
+    this.onToggleCollapse?.(this.collapsed);
   }
 
   /**
@@ -206,6 +244,16 @@ export class KanbanColumn {
         cardsContainer.removeEventListener("drop", this.dropHandler);
       }
       this.dropHandler = null;
+    }
+
+    if (this.headerClickHandler) {
+      const header = this.container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      );
+      if (header) {
+        header.removeEventListener("click", this.headerClickHandler);
+      }
+      this.headerClickHandler = null;
     }
 
     for (const card of this.cards) {

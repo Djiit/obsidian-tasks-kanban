@@ -9,11 +9,14 @@ export interface BoardState {
   sortState: SortState;
   /** Bare tag names (no leading `#`), matching SearchState.selectedTags. */
   selectedTags: string[];
+  /** Column IDs (see KanbanColumnConfig.id) that are currently folded. */
+  collapsedColumns: string[];
 }
 
 export const DEFAULT_BOARD_STATE: BoardState = {
   sortState: DEFAULT_SORT_STATE,
   selectedTags: [],
+  collapsedColumns: [],
 };
 
 /**

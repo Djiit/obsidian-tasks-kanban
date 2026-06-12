@@ -32,6 +32,8 @@ export class KanbanBoard {
   private tasks: Task[] = [];
   private searchState: SearchState;
   private sortState: SortState;
+  /** Column IDs currently folded; persisted across reopens. */
+  private collapsedColumns: Set<string>;
   private filter: TaskFilter;
 
   constructor(
@@ -52,6 +54,7 @@ export class KanbanBoard {
       titleQuery: "",
       selectedTags: [...initial.selectedTags],
     };
+    this.collapsedColumns = new Set(initial.collapsedColumns);
 
     // Search and sort controls sit above the board, in a shared header row.
     const header = this.container.createDiv({ cls: "tasks-kanban-header" });
@@ -86,6 +89,7 @@ export class KanbanBoard {
     void this.persistence.save({
       sortState: this.sortState,
       selectedTags: this.searchState.selectedTags,
+      collapsedColumns: [...this.collapsedColumns],
     });
   }
 
@@ -100,7 +104,20 @@ export class KanbanBoard {
       const columnEl = this.boardEl.createDiv({
         cls: "tasks-kanban-column",
       });
-      const column = new KanbanColumn(columnEl, config, this.tasksIntegration);
+      const column = new KanbanColumn(
+        columnEl,
+        config,
+        this.tasksIntegration,
+        this.collapsedColumns.has(config.id),
+        (collapsed) => {
+          if (collapsed) {
+            this.collapsedColumns.add(config.id);
+          } else {
+            this.collapsedColumns.delete(config.id);
+          }
+          this.persistState();
+        },
+      );
       this.columns.push(column);
     }
   }

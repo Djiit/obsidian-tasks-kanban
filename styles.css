@@ -218,6 +218,18 @@
     border-bottom: 1px solid var(--background-modifier-border);
     font-weight: 500;
     font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Fold caret — points down when open, right when collapsed */
+.tasks-kanban-column-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 10px;
+    transition: transform 0.15s ease;
 }
 
 .tasks-kanban-column-title {
@@ -246,6 +258,39 @@
     padding: 8px;
     height: 100%;
     overflow-y: auto;
+}
+
+/* Collapsed (folded) column — shrinks to a narrow vertical strip */
+.tasks-kanban-column-collapsed {
+    min-width: 40px;
+    max-width: 40px;
+}
+
+.tasks-kanban-column-collapsed .tasks-kanban-column-header {
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    padding: 8px 4px;
+    border-bottom: none;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* Caret points right when collapsed */
+.tasks-kanban-column-collapsed .tasks-kanban-column-caret {
+    transform: rotate(-90deg);
+}
+
+/* Title rendered as a single rotated line (top-to-bottom), not stacked */
+.tasks-kanban-column-collapsed .tasks-kanban-column-title {
+    writing-mode: vertical-rl;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+/* Hide the cards entirely while folded */
+.tasks-kanban-column-collapsed .tasks-kanban-column-cards {
+    display: none;
 }
 
 /* Card */
@@ -467,6 +512,24 @@
     
     .tasks-kanban-column-cards {
         max-height: 300px;
+    }
+
+    /* On mobile the board stacks vertically, so a folded column keeps its
+       full-width horizontal header and simply hides its cards. */
+    .tasks-kanban-column-collapsed {
+        min-width: 100%;
+        max-width: 100%;
+    }
+
+    .tasks-kanban-column-collapsed .tasks-kanban-column-header {
+        flex-direction: row;
+        height: auto;
+        padding: 8px 12px;
+    }
+
+    .tasks-kanban-column-collapsed .tasks-kanban-column-title {
+        writing-mode: horizontal-tb;
+        flex: 1;
     }
 }
 
