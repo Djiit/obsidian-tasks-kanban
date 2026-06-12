@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.6.0...0.7.0) (2026-06-12)
+
+
+### Features
+
+* implement minimal subset of task query reference ([2e4cd13](https://github.com/Djiit/obsidian-tasks-kanban/commit/2e4cd1309653daed095c009c64eb127d59353782))
+* support columns folding ([458c570](https://github.com/Djiit/obsidian-tasks-kanban/commit/458c570c837440cd4b8a0f7bc801e701cea36ef6))
+
+
+### Bug Fixes
+
+* apply linter ([e5c8afb](https://github.com/Djiit/obsidian-tasks-kanban/commit/e5c8afb7e7d3fe0e8ff5a516d864a529f1389292))
+
 ## [0.6.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.5.0...0.6.0) (2026-06-12)
 
 
