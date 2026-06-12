@@ -2,6 +2,7 @@ import type { Task } from '../services/TasksIntegration';
 import { TasksIntegration } from '../services/TasksIntegration';
 import { KanbanColumn } from './KanbanColumn';
 import { SearchBar } from './SearchBar';
+import { SortBar } from './SortBar';
 import { TaskFilter } from '../filters/TaskFilter';
 import { buildColumns } from '../utils/statusColumns';
 import {
@@ -9,6 +10,11 @@ import {
     getUniqueTags,
     type SearchState,
 } from '../utils/searchFilter';
+import {
+    sortTasks,
+    DEFAULT_SORT_STATE,
+    type SortState,
+} from '../utils/sortTasks';
 
 export type { KanbanColumnConfig } from '../utils/statusColumns';
 
@@ -21,11 +27,13 @@ export class KanbanBoard {
     private tasksIntegration: TasksIntegration;
     private columns: KanbanColumn[] = [];
     private searchBar: SearchBar;
+    private sortBar: SortBar;
     /** Source of truth: every task last received, before search filtering. */
     private allTasks: Task[] = [];
-    /** The tasks currently displayed (after search filtering). */
+    /** The tasks currently displayed (after search filtering and sorting). */
     private tasks: Task[] = [];
     private searchState: SearchState = { titleQuery: '', selectedTags: [] };
+    private sortState: SortState = DEFAULT_SORT_STATE;
     private filter: TaskFilter;
 
     constructor(container: HTMLElement, tasksIntegration: TasksIntegration) {
@@ -33,9 +41,14 @@ export class KanbanBoard {
         this.tasksIntegration = tasksIntegration;
         this.filter = new TaskFilter();
 
-        // Search bar sits above the board.
-        this.searchBar = new SearchBar(this.container, (state) => {
+        // Search and sort controls sit above the board, in a shared header row.
+        const header = this.container.createDiv({ cls: 'tasks-kanban-header' });
+        this.searchBar = new SearchBar(header, (state) => {
             this.searchState = state;
+            this.applySearch();
+        });
+        this.sortBar = new SortBar(header, (state) => {
+            this.sortState = state;
             this.applySearch();
         });
 
@@ -95,7 +108,8 @@ export class KanbanBoard {
      * Apply the current search state to the source tasks and re-render.
      */
     private applySearch() {
-        this.tasks = filterTasksBySearch(this.allTasks, this.searchState);
+        const filtered = filterTasksBySearch(this.allTasks, this.searchState);
+        this.tasks = sortTasks(filtered, this.sortState);
         this.distributeTasks();
     }
 
@@ -126,6 +140,7 @@ export class KanbanBoard {
      */
     destroy() {
         this.searchBar.destroy();
+        this.sortBar.destroy();
         for (const column of this.columns) {
             column.destroy();
         }
