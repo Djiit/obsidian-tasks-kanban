@@ -1,6 +1,14 @@
 import type { Task } from '../services/TasksIntegration';
 import { TasksIntegration } from '../services/TasksIntegration';
 import { truncate } from '../utils/truncate';
+import {
+    getDateChips,
+    getDependencyChips,
+    getPriorityChip,
+    stripTags,
+    type Chip,
+} from '../utils/taskChips';
+import { setTooltip } from 'obsidian';
 import type { App } from 'obsidian';
 
 /**
@@ -43,15 +51,17 @@ export class KanbanCard {
         statusEl.setAttribute('title', this.task.status.name);
         statusEl.setAttribute('data-status-type', this.task.status.type);
 
-        // Description (capped so a long task can't grow the card unbounded;
-        // the full text stays reachable via the tooltip)
+        // Description. Inline #tags are stripped first so they don't duplicate
+        // the tag chips below, then capped so a long task can't grow the card
+        // unbounded (the full text stays reachable via the tooltip).
+        const fullTitle = stripTags(this.task.description, this.task.tags);
         const descEl = this.container.createSpan({
             cls: 'tasks-kanban-card-description',
         });
-        const displayText = truncate(this.task.description);
+        const displayText = truncate(fullTitle);
         descEl.setText(displayText);
-        if (displayText !== this.task.description) {
-            descEl.setAttribute('title', this.task.description);
+        if (displayText !== fullTitle) {
+            descEl.setAttribute('title', fullTitle);
         }
 
         // Tags
@@ -67,18 +77,8 @@ export class KanbanCard {
             }
         }
 
-        // Due date
-        if (this.task.dueDate) {
-            const dueEl = this.container.createDiv({
-                cls: 'tasks-kanban-card-due',
-            });
-            dueEl.setText(this.task.dueDate);
-        }
-
-        // Priority
-        if (this.task.priority !== null && this.task.priority !== undefined) {
-            this.container.addClass(`tasks-kanban-card-priority-${this.task.priority}`);
-        }
+        // Metadata chips: priority, dates, then dependency state.
+        this.renderChips();
 
         // Add drag start handler
         this.setupDragAndDrop();
@@ -89,6 +89,44 @@ export class KanbanCard {
             this.openSourceFile();
         };
         this.container.addEventListener('click', this.clickHandler);
+    }
+
+    /**
+     * Render the metadata chips row (priority, dates, dependencies). The row is
+     * only created when there is at least one chip, so cards without metadata
+     * don't gain an empty gap.
+     */
+    private renderChips() {
+        const chips: Chip[] = [];
+
+        const priority = getPriorityChip(this.task.priority);
+        if (priority) {
+            chips.push(priority);
+        }
+
+        chips.push(...getDateChips(this.task));
+
+        const deps = getDependencyChips(this.task, this.tasksIntegration.getTasks());
+        if (deps.blocked) chips.push(deps.blocked);
+        if (deps.dependsOn) chips.push(deps.dependsOn);
+        if (deps.id) chips.push(deps.id);
+
+        if (chips.length === 0) {
+            return;
+        }
+
+        const chipsEl = this.container.createDiv({
+            cls: 'tasks-kanban-card-chips',
+        });
+        for (const chip of chips) {
+            const chipEl = chipsEl.createSpan({
+                cls: ['tasks-kanban-card-chip', `tasks-kanban-card-chip-${chip.modifier}`],
+                text: `${chip.emoji} ${chip.label}`,
+            });
+            if (chip.title) {
+                setTooltip(chipEl, chip.title);
+            }
+        }
     }
 
     /**

@@ -18,8 +18,16 @@ export interface Task {
     startDate: string | null;
     scheduledDate: string | null;
     doneDate: string | null;
+    createdDate: string | null;
+    cancelledDate: string | null;
     recurrence: Record<string, unknown> | null;
     id: string;
+    // ⛔ "depends on" — the ids of tasks this one is blocked by. obsidian-tasks'
+    // docs vocabulary maps ⛔ to "depends on", so `dependsOn` is the expected
+    // cache field; `blockedBy` is a defensive fallback as the runtime payload
+    // shape is unverified (see getDependencyChips, which reads either).
+    dependsOn: string[];
+    blockedBy?: string[];
     taskLocation: {
         path: string;
         lineNumber: number;

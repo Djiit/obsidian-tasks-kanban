@@ -157,23 +157,48 @@
     color: var(--text-muted);
 }
 
-/* Card due date */
-.tasks-kanban-card-due {
+/* Card metadata chips (priority, dates, dependencies) */
+.tasks-kanban-card-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.tasks-kanban-card-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    background-color: var(--background-secondary);
+    border-radius: 3px;
     font-size: 11px;
     color: var(--text-muted);
 }
 
-/* Priority colors */
-.tasks-kanban-card-priority-1 {
-    border-left: 3px solid var(--text-error);
+/* Priority chips */
+.tasks-kanban-card-chip-priority-highest,
+.tasks-kanban-card-chip-priority-high {
+    color: var(--text-error);
 }
 
-.tasks-kanban-card-priority-2 {
-    border-left: 3px solid var(--text-warning);
+.tasks-kanban-card-chip-priority-medium {
+    color: var(--text-warning);
 }
 
-.tasks-kanban-card-priority-3 {
-    border-left: 3px solid var(--text-success);
+/* Date chips */
+.tasks-kanban-card-chip-date-due-overdue {
+    color: var(--text-error);
+    font-weight: 600;
+}
+
+.tasks-kanban-card-chip-date-done {
+    color: var(--text-success);
+}
+
+/* Dependency chips */
+.tasks-kanban-card-chip-dep-blocked,
+.tasks-kanban-card-chip-dep-blocked-by {
+    color: var(--text-warning);
 }
 
 /* Drag and drop styles */
@@ -217,6 +242,10 @@
 }
 
 .theme-dark .tasks-kanban-card-tag {
+    background-color: var(--background-tertiary, #3d3d3d);
+}
+
+.theme-dark .tasks-kanban-card-chip {
     background-color: var(--background-tertiary, #3d3d3d);
 }
 
