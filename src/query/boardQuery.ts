@@ -201,11 +201,17 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
 
   const tagSet = new Set(
     filters
-      .filter((f): f is Extract<FilterInstruction, { kind: "tag" }> => f.kind === "tag")
+      .filter(
+        (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
+          f.kind === "tag",
+      )
       .map((f) => f.value),
   );
   const descriptions = filters
-    .filter((f): f is Extract<FilterInstruction, { kind: "description" }> => f.kind === "description")
+    .filter(
+      (f): f is Extract<FilterInstruction, { kind: "description" }> =>
+        f.kind === "description",
+    )
     .map((f) => f.value.toLowerCase());
 
   return tasks.filter((task) => {
@@ -244,7 +250,9 @@ export function withTitle(query: BoardQuery, title: string): BoardQuery {
 /** Bare tag names currently selected, in query order. */
 export function getTags(query: BoardQuery): string[] {
   return query.filters
-    .filter((f): f is Extract<FilterInstruction, { kind: "tag" }> => f.kind === "tag")
+    .filter(
+      (f): f is Extract<FilterInstruction, { kind: "tag" }> => f.kind === "tag",
+    )
     .map((f) => f.value);
 }
 
