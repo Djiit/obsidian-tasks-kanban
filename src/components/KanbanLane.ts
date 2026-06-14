@@ -20,7 +20,10 @@ export class KanbanLane {
   private columns: KanbanColumn[] = [];
   private collapsed: boolean;
   private readonly groupKey: string;
-  private readonly onToggleGroup: (groupKey: string, collapsed: boolean) => void;
+  private readonly onToggleGroup: (
+    groupKey: string,
+    collapsed: boolean,
+  ) => void;
 
   constructor(
     container: HTMLElement,
@@ -69,13 +72,23 @@ export class KanbanLane {
     this.applyCollapsed();
   }
 
-  /** Distribute this lane's tasks across its columns by status type. */
+  /** Distribute this lane's tasks across its columns by status symbol. A task
+   *  whose symbol is in no column is not shown (consistent with query filtering). */
   updateTasks(tasks: Task[]): void {
     for (const column of this.columns) {
-      const statusTasks = tasks.filter(
-        (task) => task.status.type === column.config.type,
+      const statusTasks = tasks.filter((task) =>
+        column.config.symbols.includes(task.status.symbol),
       );
       column.updateTasks(statusTasks);
+    }
+  }
+
+  /** Apply a shared column-fold change to this lane's matching column, if any. */
+  setColumnCollapsed(columnId: string, collapsed: boolean): void {
+    for (const column of this.columns) {
+      if (column.config.id === columnId) {
+        column.setCollapsed(collapsed);
+      }
     }
   }
 

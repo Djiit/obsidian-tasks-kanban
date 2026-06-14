@@ -7,7 +7,7 @@ import { SearchBar } from "./SearchBar";
 import { SortBar } from "./SortBar";
 import { GroupBar } from "./GroupBar";
 import { QueryModal } from "./QueryModal";
-import { buildColumns } from "../utils/statusColumns";
+import { resolveColumns } from "../utils/statusColumns";
 import { getUniqueTags } from "../utils/searchFilter";
 import { groupTasks, type TaskGroup } from "../utils/groupTasks";
 import {
@@ -25,7 +25,7 @@ import {
   withTitle,
   type BoardQuery,
 } from "../query/boardQuery";
-import type { BoardStatePersistence } from "../types/persistence";
+import type { BoardStatePersistence, ColumnConfig } from "../types/persistence";
 
 export type { KanbanColumnConfig } from "../utils/statusColumns";
 
@@ -54,6 +54,8 @@ export class KanbanBoard {
   private collapsedColumns: Set<string>;
   /** Group keys (swimlane keys) currently folded; persisted across reopens. */
   private collapsedGroups: Set<string>;
+  /** Custom columns for this board; empty ⇒ default status columns. */
+  private columnConfigs: ColumnConfig[];
 
   constructor(
     container: HTMLElement,
@@ -72,6 +74,7 @@ export class KanbanBoard {
     this.baseQuery = parseQuery(persistence.getBaseQuery()).query;
     this.collapsedColumns = new Set(initial.collapsedColumns);
     this.collapsedGroups = new Set(initial.collapsedGroups);
+    this.columnConfigs = initial.columns;
 
     // Search, sort, and query-edit controls sit above the board in a shared row.
     const header = this.container.createDiv({ cls: "tasks-kanban-header" });
@@ -155,6 +158,7 @@ export class KanbanBoard {
       query: serializeQuery(this.boardQuery),
       collapsedColumns: [...this.collapsedColumns],
       collapsedGroups: [...this.collapsedGroups],
+      columns: this.columnConfigs,
     });
   }
 
@@ -167,6 +171,10 @@ export class KanbanBoard {
       this.collapsedColumns.add(columnId);
     } else {
       this.collapsedColumns.delete(columnId);
+    }
+    // Apply to the same column in every other lane so folding is board-wide.
+    for (const lane of this.lanes) {
+      lane.setColumnCollapsed(columnId, collapsed);
     }
     this.persistState();
   }
@@ -222,6 +230,7 @@ export class KanbanBoard {
     this.baseQuery = parseQuery(this.persistence.getBaseQuery()).query;
     this.collapsedColumns = new Set(state.collapsedColumns);
     this.collapsedGroups = new Set(state.collapsedGroups);
+    this.columnConfigs = state.columns;
     this.searchBar.setState({
       titleQuery: getTitle(this.boardQuery),
       selectedTags: getTags(this.boardQuery),
@@ -249,12 +258,22 @@ export class KanbanBoard {
   }
 
   /**
-   * Reconcile the rendered lanes with the given groups. When the ordered set of
-   * group keys is unchanged we keep the lanes and just refresh their tasks;
-   * otherwise we rebuild (lanes are cheap and grouping changes are infrequent).
+   * Reconcile the rendered lanes with the given groups. We rebuild the lanes
+   * when either the ordered group keys or the resolved column set change;
+   * otherwise we keep the lanes and just refresh their tasks (lanes are cheap and
+   * these structural changes are infrequent). The column set is folded into the
+   * lane signature so editing custom columns (which doesn't change group keys)
+   * still re-renders.
    */
   private renderLanes(groups: TaskGroup[]) {
-    const keys = groups.map((g) => g.key);
+    const columnConfigs = resolveColumns(
+      this.columnConfigs,
+      this.tasksIntegration.getStatuses(),
+    );
+    const columnSignature = columnConfigs
+      .map((c) => `${c.id}:${c.symbols.join("")}`)
+      .join("|");
+    const keys = groups.map((g) => `${columnSignature}#${g.key}`);
     const sameLanes =
       keys.length === this.laneKeys.length &&
       keys.every((key, i) => key === this.laneKeys[i]);
@@ -264,7 +283,6 @@ export class KanbanBoard {
         lane.destroy();
       }
       this.lanes = [];
-      const columnConfigs = buildColumns(this.tasksIntegration.getStatuses());
       for (const group of groups) {
         this.lanes.push(
           new KanbanLane(

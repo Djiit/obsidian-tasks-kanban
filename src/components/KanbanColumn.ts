@@ -42,7 +42,6 @@ export class KanbanColumn {
   private init() {
     this.container.empty();
     this.container.addClass("tasks-kanban-column");
-    this.container.setAttribute("data-status-type", this.config.type);
 
     // Create header. Clicking it folds/unfolds the column.
     const header = this.container.createDiv({
@@ -97,6 +96,18 @@ export class KanbanColumn {
     this.collapsed = !this.collapsed;
     this.applyCollapsed();
     this.onToggleCollapse?.(this.collapsed);
+  }
+
+  /**
+   * Set the fold state from outside (e.g. the board syncing every lane after one
+   * column is toggled) without firing the toggle callback — avoids feedback loops.
+   */
+  setCollapsed(collapsed: boolean) {
+    if (this.collapsed === collapsed) {
+      return;
+    }
+    this.collapsed = collapsed;
+    this.applyCollapsed();
   }
 
   /**
@@ -188,9 +199,10 @@ export class KanbanColumn {
           t.taskLocation?.lineNumber === lineNumber,
       );
 
-      if (!task || task.status.type === this.config.type) {
-        // Dropped into the column it already belongs to — no-op,
-        // even if the symbol differs (e.g. a custom 'A' within In Progress).
+      if (!task || this.config.symbols.includes(task.status.symbol)) {
+        // Dropped into the column it already belongs to (its symbol is one this
+        // column collects) — no-op. Otherwise write the column's drop symbol,
+        // which may change the task within a status type (e.g. '/' → 'A').
         return;
       }
 

@@ -1,12 +1,27 @@
 import type { SortState } from "../utils/sortTasks";
 
 /**
+ * A user-defined column: a named partition over status symbols. The first symbol
+ * is the one written to a task dropped into the column (the drop symbol). When a
+ * board has no custom columns the default status columns are used instead (see
+ * resolveColumns in utils/statusColumns).
+ */
+export interface ColumnConfig {
+  /** Stable identifier (crypto.randomUUID()); also the column-fold key. */
+  id: string;
+  /** Display name shown in the column header. */
+  title: string;
+  /** Configured status symbols this column collects; symbols[0] is the drop symbol. */
+  symbols: string[];
+}
+
+/**
  * A single saved board: a named view. Its `query` holds only the view's own
  * lines (its slice; filters + sort + group); at render time that is merged on
  * top of the shared base query (see {@link PluginData.baseQuery}).
  *
- * Future (Phase 2): a `columns` field will let a board override the default
- * status columns with custom symbol columns.
+ * `columns` (when non-empty) overrides the default status columns with custom
+ * symbol columns; absent/empty means the default status columns are used.
  */
 export interface SavedBoard {
   /** Stable identifier (crypto.randomUUID()), used to match open boards. */
@@ -19,6 +34,8 @@ export interface SavedBoard {
   collapsedColumns: string[];
   /** Group keys (swimlane keys) folded on this view's board. */
   collapsedGroups?: string[];
+  /** Custom columns; absent/empty ⇒ default status columns. */
+  columns?: ColumnConfig[];
 }
 
 /**
@@ -34,6 +51,8 @@ export interface PluginData {
   baseCollapsedColumns: string[];
   /** Folded group keys for the base-only board. */
   baseCollapsedGroups: string[];
+  /** Custom columns for the base-only board; empty ⇒ default status columns. */
+  baseColumns: ColumnConfig[];
   /** User-managed saved boards (views). */
   savedBoards: SavedBoard[];
 }
@@ -45,6 +64,7 @@ export const DEFAULT_PLUGIN_DATA: PluginData = {
   baseQuery: "",
   baseCollapsedColumns: [],
   baseCollapsedGroups: [],
+  baseColumns: [],
   savedBoards: [],
 };
 
@@ -76,6 +96,8 @@ export interface BoardOwnState {
   collapsedColumns: string[];
   /** Group keys (swimlane keys) currently folded on this board. */
   collapsedGroups: string[];
+  /** Custom columns; empty ⇒ default status columns. */
+  columns: ColumnConfig[];
 }
 
 /**

@@ -1,7 +1,7 @@
 import { Plugin, type WorkspaceLeaf, Notice } from "obsidian";
 
 import { TasksBoardView } from "./views/TasksBoardView";
-import { TasksIntegration } from "./services/TasksIntegration";
+import { TasksIntegration, type StatusInfo } from "./services/TasksIntegration";
 import { TasksKanbanSettingsTab } from "./settings/SettingsTab";
 import { BoardPickerModal } from "./components/BoardPickerModal";
 import {
@@ -9,6 +9,7 @@ import {
   DEFAULT_PLUGIN_DATA,
   type BoardOwnState,
   type BoardStatePersistence,
+  type ColumnConfig,
   type LegacyBoardState,
   type PluginData,
   type SavedBoard,
@@ -51,6 +52,11 @@ export default class TasksKanbanPlugin extends Plugin {
     return this.data;
   }
 
+  /** The vault's configured Tasks statuses, for the settings column editor. */
+  getStatuses(): StatusInfo[] {
+    return this.tasksIntegration?.getStatuses() ?? [];
+  }
+
   /** The list of openable boards: the base board plus each saved board. */
   getBoards(): { id: string; name: string }[] {
     return [
@@ -81,6 +87,7 @@ export default class TasksKanbanPlugin extends Plugin {
           query: this.data.baseQuery,
           collapsedColumns: this.data.baseCollapsedColumns,
           collapsedGroups: this.data.baseCollapsedGroups,
+          columns: this.data.baseColumns,
         }),
         save: (state: BoardOwnState) => {
           this.data = {
@@ -88,6 +95,7 @@ export default class TasksKanbanPlugin extends Plugin {
             baseQuery: state.query,
             baseCollapsedColumns: state.collapsedColumns,
             baseCollapsedGroups: state.collapsedGroups,
+            baseColumns: state.columns,
           };
           return this.saveData(this.data);
         },
@@ -101,6 +109,7 @@ export default class TasksKanbanPlugin extends Plugin {
           query: saved?.query ?? "",
           collapsedColumns: saved?.collapsedColumns ?? [],
           collapsedGroups: saved?.collapsedGroups ?? [],
+          columns: saved?.columns ?? [],
         };
       },
       save: (state: BoardOwnState) => {
@@ -115,6 +124,7 @@ export default class TasksKanbanPlugin extends Plugin {
             query: state.query,
             collapsedColumns: state.collapsedColumns,
             collapsedGroups: state.collapsedGroups,
+            columns: state.columns,
           }),
         };
         return this.saveData(this.data);
@@ -126,14 +136,15 @@ export default class TasksKanbanPlugin extends Plugin {
    * Persist the base query and the saved-board list (from the settings tab), then
    * refresh open boards and close any whose saved board was deleted.
    */
-  async saveSettings(baseQuery: string, savedBoards: SavedBoard[]) {
-    this.data = { ...this.data, baseQuery, savedBoards };
+  async saveSettings(
+    baseQuery: string,
+    baseColumns: ColumnConfig[],
+    savedBoards: SavedBoard[],
+  ) {
+    this.data = { ...this.data, baseQuery, baseColumns, savedBoards };
     await this.saveData(this.data);
 
-    const validIds = new Set([
-      BASE_BOARD_ID,
-      ...savedBoards.map((b) => b.id),
-    ]);
+    const validIds = new Set([BASE_BOARD_ID, ...savedBoards.map((b) => b.id)]);
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
       const view = leaf.view;
       if (!(view instanceof TasksBoardView)) {
@@ -239,6 +250,7 @@ export default class TasksKanbanPlugin extends Plugin {
         DEFAULT_PLUGIN_DATA.baseCollapsedColumns,
       baseCollapsedGroups:
         data?.baseCollapsedGroups ?? DEFAULT_PLUGIN_DATA.baseCollapsedGroups,
+      baseColumns: data?.baseColumns ?? DEFAULT_PLUGIN_DATA.baseColumns,
       // `savedQueries` is the pre-rename key; same element shape, so read it as
       // a fallback to migrate existing data files to `savedBoards`.
       savedBoards:
@@ -256,8 +268,7 @@ export default class TasksKanbanPlugin extends Plugin {
       .getLeavesOfType(VIEW_TYPE)
       .find(
         (leaf) =>
-          leaf.view instanceof TasksBoardView &&
-          leaf.view.getQueryId() === id,
+          leaf.view instanceof TasksBoardView && leaf.view.getQueryId() === id,
       );
     if (existing) {
       this.app.workspace.setActiveLeaf(existing);

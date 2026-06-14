@@ -267,7 +267,10 @@ export function isDefaultGroup(group: GroupState): boolean {
  * by the overlay lines — tags stay OR-ed, descriptions AND-ed. The overlay's
  * sort/group each win unless default, in which case the base value applies.
  */
-export function mergeQueries(base: BoardQuery, overlay: BoardQuery): BoardQuery {
+export function mergeQueries(
+  base: BoardQuery,
+  overlay: BoardQuery,
+): BoardQuery {
   return {
     filters: [...base.filters, ...overlay.filters],
     sort: isDefaultSort(overlay.sort) ? base.sort : overlay.sort,

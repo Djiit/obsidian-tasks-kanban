@@ -1,17 +1,20 @@
 import type { StatusInfo } from "../services/TasksIntegration";
+import type { ColumnConfig } from "../types/persistence";
 
 /**
- * Configuration for a Kanban column.
- * Columns map to a status *type*; a single column may cover several symbols
- * (e.g. both '/' and a custom 'A' can be IN_PROGRESS).
+ * Configuration for a Kanban column at render time.
+ *
+ * A column is a partition over status *symbols*: a task belongs to the column
+ * whose {@link symbols} include its status symbol. Default columns (see
+ * {@link buildColumns}) group every symbol of a status type together; custom
+ * columns (see {@link resolveColumns}) are user-defined symbol partitions.
  */
 export interface KanbanColumnConfig {
   id: string;
   title: string;
-  type: string;
-  /** Every status symbol belonging to this column's type */
+  /** Status symbols this column collects. */
   symbols: string[];
-  /** Symbol written to the task when it is dropped into this column */
+  /** Symbol written to the task when it is dropped into this column. */
   dropSymbol: string;
   color?: string;
 }
@@ -64,11 +67,34 @@ export function buildColumns(statuses: StatusInfo[]): KanbanColumnConfig[] {
     columns.push({
       id: type.toLowerCase().replace(/_/g, "-"),
       title: TYPE_LABELS[type],
-      type,
       symbols,
       dropSymbol: symbols[0],
     });
   }
 
   return columns;
+}
+
+/**
+ * Resolve a board's persisted column configuration into the runtime columns to
+ * render. With no custom columns this is the default status columns
+ * ({@link buildColumns}); otherwise each {@link ColumnConfig} becomes a runtime
+ * column whose drop symbol is its first symbol. Columns with no symbols are
+ * dropped (they could neither match a task nor accept a drop).
+ */
+export function resolveColumns(
+  custom: ColumnConfig[],
+  statuses: StatusInfo[],
+): KanbanColumnConfig[] {
+  if (custom.length === 0) {
+    return buildColumns(statuses);
+  }
+  return custom
+    .filter((column) => column.symbols.length > 0)
+    .map((column) => ({
+      id: column.id,
+      title: column.title,
+      symbols: column.symbols,
+      dropSymbol: column.symbols[0],
+    }));
 }

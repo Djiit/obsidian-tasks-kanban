@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildColumns } from '../src/utils/statusColumns';
+import { buildColumns, resolveColumns } from '../src/utils/statusColumns';
 import type { StatusInfo } from '../src/services/TasksIntegration';
+import type { ColumnConfig } from '../src/types/persistence';
 
 // Mirrors the test vault's statusSettings: core first, then custom.
 const VAULT_STATUSES: StatusInfo[] = [
@@ -20,17 +21,11 @@ describe('buildColumns', () => {
             'Done',
             'Cancelled',
         ]);
-        expect(columns.map((c) => c.type)).toEqual([
-            'TODO',
-            'IN_PROGRESS',
-            'DONE',
-            'CANCELLED',
-        ]);
     });
 
     it('groups multiple symbols of the same type into one column', () => {
         const columns = buildColumns(VAULT_STATUSES);
-        const inProgress = columns.find((c) => c.type === 'IN_PROGRESS');
+        const inProgress = columns.find((c) => c.title === 'In Progress');
         expect(inProgress?.symbols).toEqual(['/', 'A']);
         expect(inProgress?.dropSymbol).toBe('/');
     });
@@ -40,7 +35,7 @@ describe('buildColumns', () => {
             ...VAULT_STATUSES,
             { symbol: 'P', name: 'Pseudo', type: 'NON_TASK' },
         ]);
-        expect(columns.some((c) => c.type === 'NON_TASK')).toBe(false);
+        expect(columns.some((c) => c.title === 'Pseudo')).toBe(false);
         expect(columns).toHaveLength(4);
     });
 
@@ -49,15 +44,46 @@ describe('buildColumns', () => {
             { symbol: ' ', name: 'Todo', type: 'TODO' },
             { symbol: 'x', name: 'Done', type: 'DONE' },
         ]);
-        expect(columns.map((c) => c.type)).toEqual(['TODO', 'DONE']);
+        expect(columns.map((c) => c.title)).toEqual(['Todo', 'Done']);
     });
 
     it('derives a kebab-case id from the type', () => {
         const columns = buildColumns(VAULT_STATUSES);
-        expect(columns.find((c) => c.type === 'IN_PROGRESS')?.id).toBe('in-progress');
+        expect(columns.find((c) => c.title === 'In Progress')?.id).toBe(
+            'in-progress',
+        );
     });
 
     it('returns an empty array for no statuses', () => {
         expect(buildColumns([])).toEqual([]);
+    });
+});
+
+describe('resolveColumns', () => {
+    it('falls back to default status columns when there are no custom columns', () => {
+        expect(resolveColumns([], VAULT_STATUSES)).toEqual(
+            buildColumns(VAULT_STATUSES),
+        );
+    });
+
+    it('maps custom columns to runtime columns with the first symbol as drop', () => {
+        const custom: ColumnConfig[] = [
+            { id: 'a', title: 'Ongoing', symbols: ['/'] },
+            { id: 'b', title: 'In Review', symbols: ['A', 'R'] },
+        ];
+        const columns = resolveColumns(custom, VAULT_STATUSES);
+        expect(columns).toEqual([
+            { id: 'a', title: 'Ongoing', symbols: ['/'], dropSymbol: '/' },
+            { id: 'b', title: 'In Review', symbols: ['A', 'R'], dropSymbol: 'A' },
+        ]);
+    });
+
+    it('drops custom columns that have no symbols', () => {
+        const custom: ColumnConfig[] = [
+            { id: 'a', title: 'Empty', symbols: [] },
+            { id: 'b', title: 'Todo', symbols: [' '] },
+        ];
+        const columns = resolveColumns(custom, VAULT_STATUSES);
+        expect(columns.map((c) => c.id)).toEqual(['b']);
     });
 });

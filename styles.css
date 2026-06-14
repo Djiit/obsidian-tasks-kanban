@@ -792,3 +792,34 @@
 .tasks-kanban-settings-save {
     margin-top: 16px;
 }
+
+/* Settings: custom column editor — a row per column with a status checkbox list. */
+.tasks-kanban-setting-column {
+    align-items: flex-start;
+}
+
+.tasks-kanban-column-symbols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 6px;
+}
+
+.tasks-kanban-column-symbol {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-ui-small);
+    cursor: pointer;
+}
+
+.tasks-kanban-column-symbol-text {
+    white-space: nowrap;
+}
+
+.tasks-kanban-column-hint {
+    width: 100%;
+    margin-top: 6px;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}

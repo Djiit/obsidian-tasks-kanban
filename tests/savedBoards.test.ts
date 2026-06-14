@@ -26,6 +26,23 @@ describe('createSavedBoard', () => {
         expect(a.collapsedColumns).toEqual([]);
         expect(a.id).not.toBe(b.id);
     });
+
+    it('has no custom columns by default (uses default status columns)', () => {
+        expect(createSavedBoard('Work').columns).toBeUndefined();
+    });
+});
+
+describe('upsertSavedBoard with columns', () => {
+    it('preserves a board\'s custom columns', () => {
+        const board = saved({
+            id: 'a',
+            columns: [{ id: 'c1', title: 'Ongoing', symbols: ['/'] }],
+        });
+        const next = upsertSavedBoard([], board);
+        expect(next[0].columns).toEqual([
+            { id: 'c1', title: 'Ongoing', symbols: ['/'] },
+        ]);
+    });
 });
 
 describe('findSavedBoard', () => {
