@@ -614,3 +614,27 @@
     gap: 8px;
     margin-top: 16px;
 }
+
+/* Settings: Board query — stacked vertical layout with full-width textarea */
+.tasks-kanban-setting-query {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.tasks-kanban-setting-query .setting-item-info {
+    margin-right: 0;
+}
+
+.tasks-kanban-setting-query .setting-item-control {
+    justify-content: stretch;
+    width: 100%;
+}
+
+.tasks-kanban-setting-query .setting-item-control textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--font-monospace);
+    resize: vertical;
+}

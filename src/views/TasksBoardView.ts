@@ -79,10 +79,11 @@ export class TasksBoardView extends ItemView {
   }
 
   /**
-   * Refresh the view with current tasks
+   * Refresh the view with current tasks and query
    */
   refresh() {
     if (this.kanbanBoard) {
+      this.kanbanBoard.reloadQueryFromPersistence();
       const tasks = this.tasksIntegration.getTasks();
       this.kanbanBoard.updateTasks(tasks);
     }

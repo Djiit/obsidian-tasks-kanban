@@ -197,6 +197,21 @@ export class KanbanBoard {
   }
 
   /**
+   * Reload the query from persistence and re-apply it.
+   */
+  reloadQueryFromPersistence(): void {
+    const state = this.persistence.get();
+    this.boardQuery = parseQuery(state.query).query;
+    this.collapsedColumns = new Set(state.collapsedColumns);
+    this.searchBar.setState({
+      titleQuery: getTitle(this.boardQuery),
+      selectedTags: getTags(this.boardQuery),
+    });
+    this.sortBar.setState(getSort(this.boardQuery));
+    this.applyQuery();
+  }
+
+  /**
    * Apply the canonical query (filter + sort) to the source tasks and re-render.
    */
   private applyQuery() {

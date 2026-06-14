@@ -39,14 +39,21 @@ The Kanban board displays tasks in three default columns:
 - **In Progress**: Tasks with status symbol `/`
 - **Done**: Tasks with status symbol `x`
 
-### Filtering
+### Filtering and Sorting
 
-The board supports filtering using Tasks query syntax:
-- `#tag` - Filter by tag
-- `path:"folder"` - Filter by path
-- `status:"x"` - Filter by status
-- `due:2024-01-01` - Filter by due date
-- `priority:1` - Filter by priority (1-3)
+The board supports a subset of Tasks query syntax for filtering and sorting. For complete documentation, see [Query Syntax](docs/query-syntax.md).
+
+**Supported filtering:**
+- `tag includes #<tag>` - Show tasks with the specified tag
+- `description includes <text>` - Show tasks whose description contains the text
+
+**Supported sorting:**
+- `sort by <field>` - Sort in ascending order
+- `sort by <field> reverse` - Sort in descending order
+
+**Supported sort fields:** `due`, `scheduled`, `start`, `created`, `priority`
+
+See [Query Syntax](docs/query-syntax.md) for detailed examples and notes about the supported syntax subset.
 
 ### Drag & Drop
 

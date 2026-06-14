@@ -2,6 +2,7 @@ import { Plugin, type WorkspaceLeaf, Notice } from "obsidian";
 
 import { TasksBoardView } from "./views/TasksBoardView";
 import { TasksIntegration } from "./services/TasksIntegration";
+import { TasksKanbanSettingsTab } from "./settings/SettingsTab";
 import {
   DEFAULT_BOARD_STATE,
   type BoardState,
@@ -33,6 +34,26 @@ function migrateLegacyQuery(data: LegacyBoardState | null): string {
 export default class TasksKanbanPlugin extends Plugin {
   private tasksIntegration: TasksIntegration | null = null;
   private boardState: BoardState = DEFAULT_BOARD_STATE;
+  private boardViews: TasksBoardView[] = [];
+
+  /** Get the current board state for use by SettingsTab */
+  getBoardState(): BoardState {
+    return this.boardState;
+  }
+
+  /** Save board state from SettingsTab and refresh open boards */
+  async saveBoardStateFromSettings(state: BoardState): Promise<void> {
+    this.boardState = state;
+    await this.saveData(this.boardState);
+    this.refreshBoardViews();
+  }
+
+  /** Refresh all open board views with the current board state */
+  private refreshBoardViews(): void {
+    for (const view of this.boardViews) {
+      view.refresh();
+    }
+  }
 
   async onload() {
     const tasksPlugin = this.app.plugins.getPlugin("obsidian-tasks-plugin");
@@ -47,15 +68,17 @@ export default class TasksKanbanPlugin extends Plugin {
 
     this.tasksIntegration = new TasksIntegration(this.app);
 
+    this.addSettingTab(new TasksKanbanSettingsTab(this.app, this));
+
     const tasksIntegration = this.tasksIntegration;
-    this.registerView(
-      VIEW_TYPE,
-      (leaf: WorkspaceLeaf) =>
-        new TasksBoardView(leaf, tasksIntegration, {
-          get: () => this.boardState,
-          save: (state) => this.saveBoardState(state),
-        }),
-    );
+    this.registerView(VIEW_TYPE, (leaf: WorkspaceLeaf) => {
+      const view = new TasksBoardView(leaf, tasksIntegration, {
+        get: () => this.boardState,
+        save: (state) => this.saveBoardState(state),
+      });
+      this.boardViews.push(view);
+      return view;
+    });
 
     this.addCommand({
       id: "open-board",
