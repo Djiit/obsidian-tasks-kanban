@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.8.0...0.8.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* clarify why this pugin vs other kanban boards in README ([24721e6](https://github.com/Djiit/obsidian-tasks-kanban/commit/24721e664b592a45a97193901f964dfaca02bd0f))
+
 ## [0.8.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.7.0...0.8.0) (2026-06-14)
 
 
