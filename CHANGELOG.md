@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.8.1...0.8.2) (2026-06-14)
+
+
+### Bug Fixes
+
+* add husky, lint-staged and commitlint hooks and fix linters ([3ddee48](https://github.com/Djiit/obsidian-tasks-kanban/commit/3ddee48cccdc4baff375a39486496ff5e45b3d7b))
+
 ## [0.8.1](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.8.0...0.8.1) (2026-06-14)
 
 
