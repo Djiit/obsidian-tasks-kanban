@@ -80,16 +80,11 @@ const SORT_FIELD_TO_KEYWORD: Partial<Record<SortField, string>> = {
 };
 
 /** Maps the Tasks `group by` keyword to our internal {@link GroupField}. */
+// Date-based grouping is intentionally unsupported: one lane per distinct date
+// scatters the board. Group fields are limited to low-cardinality dimensions.
 const GROUP_KEYWORD_TO_FIELD: Record<string, GroupField> = {
   status: "status",
   priority: "priority",
-  due: "dueDate",
-  scheduled: "scheduledDate",
-  start: "startDate",
-  done: "doneDate",
-  created: "createdDate",
-  cancelled: "cancelledDate",
-  happens: "happens",
   tags: "tags",
   path: "path",
   folder: "folder",
@@ -100,13 +95,6 @@ const GROUP_KEYWORD_TO_FIELD: Record<string, GroupField> = {
 const GROUP_FIELD_TO_KEYWORD: Partial<Record<GroupField, string>> = {
   status: "status",
   priority: "priority",
-  dueDate: "due",
-  scheduledDate: "scheduled",
-  startDate: "start",
-  doneDate: "done",
-  createdDate: "created",
-  cancelledDate: "cancelled",
-  happens: "happens",
   tags: "tags",
   path: "path",
   folder: "folder",
@@ -115,7 +103,7 @@ const GROUP_FIELD_TO_KEYWORD: Partial<Record<GroupField, string>> = {
 
 /** One-line summary of the supported syntax, used in error messages. */
 const SUPPORTED_SYNTAX =
-  "supported: tag includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|due|scheduled|start|done|created|cancelled|happens|tags|path|folder|filename> [reverse]";
+  "supported: tag includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
 
 /**
  * Parse a multi-line query string into a {@link BoardQuery}. One instruction per

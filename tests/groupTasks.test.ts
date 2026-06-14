@@ -85,13 +85,13 @@ describe('groupTasks by tags', () => {
 describe('groupTasks missing values', () => {
     it('keeps the None lane last even when reversed', () => {
         const tasks = [
-            createTask({ id: 'a', dueDate: '2026-01-01' }),
-            createTask({ id: 'none', dueDate: null }),
-            createTask({ id: 'b', dueDate: '2026-02-01' }),
+            createTask({ id: 'a', tags: ['alpha'] }),
+            createTask({ id: 'none', tags: [] }),
+            createTask({ id: 'b', tags: ['beta'] }),
         ];
-        const asc = labels(tasks, state({ field: 'dueDate' }));
+        const asc = labels(tasks, state({ field: 'tags' }));
         expect(asc[asc.length - 1]).toBe('None');
-        const desc = labels(tasks, state({ field: 'dueDate', direction: 'desc' }));
+        const desc = labels(tasks, state({ field: 'tags', direction: 'desc' }));
         expect(desc[desc.length - 1]).toBe('None');
     });
 });
@@ -110,24 +110,5 @@ describe('groupTasks path derivations', () => {
     it('groups root-level files under "/" folder', () => {
         const tasks = [createTask({ taskLocation: { path: 'inbox.md', lineNumber: 1 } })];
         expect(labels(tasks, state({ field: 'folder' }))).toEqual(['/']);
-    });
-});
-
-describe('groupTasks happens', () => {
-    it('uses the earliest of start/scheduled/due', () => {
-        const tasks = [
-            createTask({
-                id: 'a',
-                startDate: '2026-03-01',
-                scheduledDate: '2026-01-15',
-                dueDate: '2026-02-01',
-            }),
-        ];
-        expect(labels(tasks, state({ field: 'happens' }))).toEqual(['2026-01-15']);
-    });
-
-    it('falls back to None when no happens date is set', () => {
-        const tasks = [createTask({ id: 'a' })];
-        expect(labels(tasks, state({ field: 'happens' }))).toEqual(['None']);
     });
 });

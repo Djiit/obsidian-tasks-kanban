@@ -334,8 +334,8 @@ describe('group by parsing', () => {
             field: 'priority',
             direction: 'asc',
         });
-        expect(parseQuery('group by due reverse').query.group).toEqual({
-            field: 'dueDate',
+        expect(parseQuery('group by status reverse').query.group).toEqual({
+            field: 'status',
             direction: 'desc',
         });
     });
@@ -343,7 +343,13 @@ describe('group by parsing', () => {
     it('maps Tasks keywords to internal fields', () => {
         expect(parseQuery('group by folder').query.group.field).toBe('folder');
         expect(parseQuery('group by tags').query.group.field).toBe('tags');
-        expect(parseQuery('group by done').query.group.field).toBe('doneDate');
+        expect(parseQuery('group by filename').query.group.field).toBe('filename');
+    });
+
+    it('rejects date-based group fields (they scatter the board)', () => {
+        const { errors } = parseQuery('group by due');
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain('unknown group field');
     });
 
     it('reports an unknown group field as an error', () => {

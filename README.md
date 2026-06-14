@@ -4,11 +4,15 @@ A Kanban board view plugin for Obsidian that displays Tasks in a visual board la
 
 ## Features
 
-- **Kanban Board View**: Display your tasks in a Kanban-style board with columns for each status
-- **Status Columns**: Default columns for Todo, In Progress, and Done
-- **Tasks Integration**: Listens to Tasks plugin events for real-time updates
+- **Kanban Board View**: Display your tasks in a Kanban-style board with a column per status
+- **Multiple Saved Boards**: Define several named boards, each with its own query and columns; open each in its own tab
+- **Base Query**: A shared query merged into every board, so common filters live in one place
+- **Custom Columns**: Optionally replace the default status columns with your own, mapping each column to specific status symbols (e.g. split "In Progress" into "Ongoing" `/` and "In Review" `A`)
+- **Grouping (Swimlanes)**: Group cards into foldable lanes by status, priority, tags, path, folder, or filename
+- **Sorting**: Sort cards by priority or a date field, ascending or descending
+- **Filtering**: Search bar for title and tags, plus full Tasks-style query editing
 - **Drag & Drop**: Move tasks between columns to change their status
-- **Filtering**: Supports Tasks query syntax for filtering tasks
+- **Tasks Integration**: Listens to Tasks plugin events for real-time updates
 - **Click to Open**: Click on any task card to open the source file
 
 ## Installation
@@ -27,40 +31,56 @@ A Kanban board view plugin for Obsidian that displays Tasks in a visual board la
 
 ## Usage
 
-### Opening the Kanban Board
+### Opening a board
 
-- Use the command palette: "Open Tasks Kanban Board"
-- Or add a hotkey for the command
+From the command palette:
 
-### View Layout
+- **Open board** — opens the default board
+- **Open saved query…** — pick one of your saved boards to open
+- **Open new blank board** — create a fresh board and start customizing it
 
-The Kanban board displays tasks in three default columns:
-- **Todo**: Tasks with status symbol ` ` (space)
-- **In Progress**: Tasks with status symbol `/`
-- **Done**: Tasks with status symbol `x`
+Each board opens in its own tab; opening a board that's already open focuses its tab.
 
-### Filtering and Sorting
+### Columns
 
-The board supports a subset of Tasks query syntax for filtering and sorting. For complete documentation, see [Query Syntax](docs/query-syntax.md).
+By default the board shows one column per status type (Todo, In Progress, Done, Cancelled), derived from your Tasks status configuration.
 
-**Supported filtering:**
-- `tag includes #<tag>` - Show tasks with the specified tag
-- `description includes <text>` - Show tasks whose description contains the text
+You can instead define **custom columns** per board in Settings. Each custom column is a partition over status symbols — pick which statuses it collects, and the first one becomes the symbol written when you drop a card into it. This lets you, for example, split "In Progress" into separate "Ongoing" (`/`) and "In Review" (`A`) columns.
 
-**Supported sorting:**
-- `sort by <field>` - Sort in ascending order
-- `sort by <field> reverse` - Sort in descending order
+### Saved boards and the base query
 
-**Supported sort fields:** `due`, `scheduled`, `start`, `created`, `priority`
+A board's view is defined by a **query** (filters + sort + grouping) and its **columns**. In Settings you can:
 
-See [Query Syntax](docs/query-syntax.md) for detailed examples and notes about the supported syntax subset.
+- Edit the **base query**, merged on top of every board
+- Add, rename, and delete **saved boards**, each with its own query and columns
+
+Inline edits from a board's search/sort/group bars are saved back to that board.
+
+### Filtering, sorting, and grouping
+
+The board supports a subset of Tasks query syntax. For complete documentation, see [Query Syntax](docs/query-syntax.md).
+
+**Filtering:**
+- `tag includes #<tag>` — show tasks with the specified tag
+- `description includes <text>` — show tasks whose description contains the text
+
+**Sorting:**
+- `sort by <field>` / `sort by <field> reverse`
+- Fields: `due`, `scheduled`, `start`, `created`, `priority`
+
+**Grouping** (into foldable swimlanes):
+- `group by <field>` / `group by <field> reverse`
+- Fields: `status`, `priority`, `tags`, `path`, `folder`, `filename`
+
+Date-based grouping is intentionally not offered, since one lane per distinct date scatters the board.
+
+The search and sort/group bars above the board edit the same query visually; the filter button opens the raw query editor.
 
 ### Drag & Drop
 
-- Drag a task card from one column
-- Drop it on another column to change its status
-- The source file is automatically updated
-- The board refreshes to show the new status
+- Drag a task card from one column and drop it on another to change its status
+- The dropped card takes the target column's status symbol
+- The source file is updated and the board refreshes to show the new status
 
 ## Development
 
@@ -68,22 +88,37 @@ See [Query Syntax](docs/query-syntax.md) for detailed examples and notes about t
 
 ```
 obsidian-tasks-kanban/
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # GitHub Actions CI
+├── .github/workflows/ci.yml         # GitHub Actions CI
 ├── src/
-│   ├── main.ts                      # Plugin entry point
+│   ├── main.ts                      # Plugin entry point, commands, persistence
 │   ├── services/
-│   │   ├── TasksIntegration.ts      # Integration with Tasks plugin
+│   │   ├── TasksIntegration.ts      # Integration with Tasks plugin + statuses
 │   │   └── TaskUpdater.ts           # Update task status in source files
 │   ├── views/
-│   │   └── TasksBoardView.ts        # Kanban view
+│   │   └── TasksBoardView.ts        # Kanban view (one per board id)
 │   ├── components/
-│   │   ├── KanbanBoard.ts           # Board logic
+│   │   ├── KanbanBoard.ts           # Board logic (query, grouping, columns)
+│   │   ├── KanbanLane.ts            # Swimlane (one per group)
 │   │   ├── KanbanColumn.ts          # Column component (drop zone)
-│   │   └── KanbanCard.ts            # Task card component (draggable)
-│   └── filters/
-│       └── TaskFilter.ts            # Task filtering
+│   │   ├── KanbanCard.ts            # Task card component (draggable)
+│   │   ├── SearchBar.ts             # Title + tag filter bar
+│   │   ├── SortBar.ts               # Sort control
+│   │   ├── GroupBar.ts              # Grouping control
+│   │   ├── QueryModal.ts            # Raw query editor
+│   │   └── BoardPickerModal.ts      # Saved-board picker
+│   ├── query/
+│   │   ├── boardQuery.ts            # Query parse/serialize/apply (filters+sort+group)
+│   │   └── savedBoards.ts           # Saved-board list helpers
+│   ├── utils/
+│   │   ├── statusColumns.ts         # Default + custom column resolution
+│   │   ├── groupTasks.ts            # Swimlane grouping
+│   │   ├── sortTasks.ts             # Sorting
+│   │   ├── searchFilter.ts          # Tag/title helpers
+│   │   └── taskChips.ts             # Card metadata chips
+│   ├── settings/
+│   │   └── SettingsTab.ts           # Base query + saved boards + columns editor
+│   └── types/
+│       └── persistence.ts           # Persisted data model
 ├── styles.css                      # Board styles
 ├── manifest.json                   # Plugin manifest
 ├── package.json                    # Dependencies and scripts
@@ -184,9 +219,10 @@ Uses Obsidian's CSS variables for theme compatibility:
 
 ## Future Enhancements
 
-- [ ] Configurable columns (add/remove/reorder)
-- [ ] Column-specific filters
-- [ ] Grouping by tags, priority, or due date
+- [x] Configurable columns (custom status-symbol columns per board)
+- [x] Grouping by status, priority, tags, path, folder, or filename
+- [x] Multiple saved boards, each with its own query and columns
+- [ ] Column reordering via drag & drop
 - [ ] Save view configuration in file frontmatter
 - [ ] Mobile touch support for drag & drop
 - [ ] Batch status updates

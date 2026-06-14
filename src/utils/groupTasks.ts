@@ -13,13 +13,6 @@ export type GroupField =
   | "none"
   | "status"
   | "priority"
-  | "dueDate"
-  | "scheduledDate"
-  | "startDate"
-  | "doneDate"
-  | "createdDate"
-  | "cancelledDate"
-  | "happens"
   | "tags"
   | "path"
   | "folder"
@@ -47,13 +40,6 @@ export const GROUP_FIELD_LABELS: Record<GroupField, string> = {
   none: "No grouping",
   status: "Status",
   priority: "Priority",
-  dueDate: "Due date",
-  scheduledDate: "Scheduled date",
-  startDate: "Start date",
-  doneDate: "Done date",
-  createdDate: "Created date",
-  cancelledDate: "Cancelled date",
-  happens: "Happens date",
   tags: "Tags",
   path: "Path",
   folder: "Folder",
@@ -71,15 +57,6 @@ export interface TaskGroup {
 const ALL_KEY = "__all__";
 /** Label used for tasks missing a value for the grouped field. */
 const NONE_LABEL = "None";
-
-const DATE_FIELDS: Record<string, keyof Task> = {
-  dueDate: "dueDate",
-  scheduledDate: "scheduledDate",
-  startDate: "startDate",
-  doneDate: "doneDate",
-  createdDate: "createdDate",
-  cancelledDate: "cancelledDate",
-};
 
 const PRIORITY_LABELS: Record<number, string> = {
   0: "Highest",
@@ -100,17 +77,6 @@ function folderOf(path: string): string {
 function filenameOf(path: string): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
   return base.replace(/\.md$/i, "");
-}
-
-/** Earliest present of start/scheduled/due, or null when none are set. */
-function happensOf(task: Task): string | null {
-  const candidates = [task.startDate, task.scheduledDate, task.dueDate].filter(
-    (d): d is string => !!d,
-  );
-  if (candidates.length === 0) {
-    return null;
-  }
-  return candidates.reduce((min, d) => (d < min ? d : min));
 }
 
 /**
@@ -135,18 +101,8 @@ function labelsFor(task: Task, field: GroupField): string[] {
       return task.taskLocation?.path
         ? [filenameOf(task.taskLocation.path)]
         : [];
-    case "happens": {
-      const value = happensOf(task);
-      return value ? [value] : [];
-    }
-    default: {
-      const key = DATE_FIELDS[field];
-      if (!key) {
-        return [];
-      }
-      const value = task[key] as string | null;
-      return value ? [value] : [];
-    }
+    default:
+      return [];
   }
 }
 
