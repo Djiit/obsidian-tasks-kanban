@@ -93,11 +93,6 @@ npm test        # Run all tests once
 npm run test:watch  # Watch mode for development
 ```
 
-### Test Coverage
-
-Current tests:
-- TaskFilter: 12 tests covering tag, path, status, description, priority filtering
-
 ### Manual Testing
 
 1. Open Obsidian with Test vault
@@ -114,8 +109,3 @@ Current tests:
 - **File Access**: Use `app.vault.read()` and `app.vault.write()` for file operations
 - **Event Timing**: Tasks may emit multiple cache-update events on startup
 - **Duplicate Tasks**: Always deduplicate tasks by ID before processing
-
-## Version History
-
-- **0.1.0**: Initial MVP with display-only Kanban board
-- **0.1.1**: Added drag & drop between columns
