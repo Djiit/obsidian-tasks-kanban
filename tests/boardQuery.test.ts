@@ -4,6 +4,8 @@ import {
     getSort,
     getTags,
     getTitle,
+    isDefaultSort,
+    mergeQueries,
     parseQuery,
     serializeQuery,
     withSort,
@@ -254,5 +256,58 @@ describe('applyBoardQuery', () => {
         ];
         const { query } = parseQuery('tag includes #t\nsort by due');
         expect(ids(applyBoardQuery(tasks, query))).toEqual(['early', 'late', 'none']);
+    });
+});
+
+describe('isDefaultSort', () => {
+    it('is true for the default sort state', () => {
+        expect(isDefaultSort({ ...DEFAULT_SORT_STATE })).toBe(true);
+    });
+
+    it('is false when the field differs', () => {
+        expect(isDefaultSort({ field: 'dueDate', direction: 'asc' })).toBe(false);
+    });
+
+    it('is false when the direction differs', () => {
+        expect(
+            isDefaultSort({ field: DEFAULT_SORT_STATE.field, direction: 'desc' }),
+        ).toBe(false);
+    });
+});
+
+describe('mergeQueries', () => {
+    it('concatenates filters with base first', () => {
+        const base = parseQuery('tag includes #base').query;
+        const overlay = parseQuery('tag includes #view\ndescription includes x').query;
+        expect(mergeQueries(base, overlay).filters).toEqual([
+            { kind: 'tag', value: 'base' },
+            { kind: 'tag', value: 'view' },
+            { kind: 'description', value: 'x' },
+        ]);
+    });
+
+    it('keeps the base sort when the overlay sort is default', () => {
+        const base = parseQuery('sort by due reverse').query;
+        const overlay = parseQuery('tag includes #view').query;
+        expect(mergeQueries(base, overlay).sort).toEqual(base.sort);
+    });
+
+    it('lets a non-default overlay sort override the base sort', () => {
+        const base = parseQuery('sort by due').query;
+        const overlay = parseQuery('sort by priority reverse').query;
+        expect(mergeQueries(base, overlay).sort).toEqual(overlay.sort);
+    });
+
+    it('merges so a base+overlay read filters like the combined lines', () => {
+        const tasks = [
+            createTask({ id: 'keep', tags: ['base'], description: 'do the thing' }),
+            createTask({ id: 'wrongTag', tags: ['other'], description: 'do the thing' }),
+            createTask({ id: 'wrongDesc', tags: ['base'], description: 'nope' }),
+        ];
+        const base = parseQuery('tag includes #base').query;
+        const overlay = parseQuery('description includes thing').query;
+        expect(ids(applyBoardQuery(tasks, mergeQueries(base, overlay)))).toEqual([
+            'keep',
+        ]);
     });
 });

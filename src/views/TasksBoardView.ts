@@ -2,37 +2,90 @@ import { ItemView, type WorkspaceLeaf } from "obsidian";
 
 import { TasksIntegration, type Task } from "../services/TasksIntegration";
 import { KanbanBoard } from "../components/KanbanBoard";
-import type { BoardStatePersistence } from "../types/persistence";
+import {
+  BASE_BOARD_ID,
+  type BoardStatePersistence,
+} from "../types/persistence";
 
 /**
- * The Kanban board view for displaying Tasks
+ * The slice of the plugin a board view needs to resolve its identity into a
+ * persistence accessor and a display name. Kept narrow to avoid a circular
+ * dependency on the plugin's concrete class.
+ */
+export interface BoardHost {
+  createPersistence(id: string): BoardStatePersistence;
+  getBoardName(id: string): string;
+}
+
+interface BoardViewState {
+  queryId?: string;
+}
+
+/**
+ * The Kanban board view for displaying Tasks. Each instance is bound to a board
+ * id (the base board or a saved query) carried in its view state, so it survives
+ * reload and can be matched by {@link TasksKanbanPlugin.activateView}.
  */
 export class TasksBoardView extends ItemView {
   private tasksIntegration: TasksIntegration;
-  private persistence: BoardStatePersistence;
+  private host: BoardHost;
   private kanbanBoard: KanbanBoard | null = null;
   private unsubscribe: (() => void) | null = null;
+  private queryId: string = BASE_BOARD_ID;
+  /** Persistence that reads the live queryId, so it stays correct even though
+   * Obsidian runs onOpen (which builds the board) before setState sets the id. */
+  private readonly persistence: BoardStatePersistence;
 
   constructor(
     leaf: WorkspaceLeaf,
     tasksIntegration: TasksIntegration,
-    persistence: BoardStatePersistence,
+    host: BoardHost,
   ) {
     super(leaf);
     this.tasksIntegration = tasksIntegration;
-    this.persistence = persistence;
+    this.host = host;
+    this.persistence = {
+      get: () => this.host.createPersistence(this.queryId).get(),
+      getBaseQuery: () =>
+        this.host.createPersistence(this.queryId).getBaseQuery(),
+      save: (state) => this.host.createPersistence(this.queryId).save(state),
+    };
   }
 
   getViewType(): string {
     return "tasks-board";
   }
 
+  /** The board id this view is bound to. */
+  getQueryId(): string {
+    return this.queryId;
+  }
+
   getDisplayText(): string {
-    return "Tasks kanban board";
+    return this.host.getBoardName(this.queryId);
   }
 
   getIcon(): string {
     return "columns";
+  }
+
+  getState(): Record<string, unknown> {
+    return { ...super.getState(), queryId: this.queryId };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async setState(state: BoardViewState, result: any): Promise<void> {
+    const changed = !!state?.queryId && state.queryId !== this.queryId;
+    if (state?.queryId) {
+      this.queryId = state.queryId;
+    }
+    await super.setState(state, result);
+    // Obsidian runs onOpen (which builds the board) BEFORE setState supplies the
+    // id, so the board was hydrated against the default base query. Now that the
+    // real id is known, reload the board's query from persistence.
+    if (changed && this.kanbanBoard) {
+      this.kanbanBoard.reloadQueryFromPersistence();
+    }
   }
 
   async onOpen() {
@@ -44,7 +97,9 @@ export class TasksBoardView extends ItemView {
     // (also picks up status-config changes whenever the board is reopened).
     await this.tasksIntegration.loadStatuses();
 
-    // Create the Kanban board
+    // Create the Kanban board. The persistence reads the live queryId, so even
+    // though onOpen runs before setState supplies it, a later reload picks up
+    // the correct query (see setState).
     this.kanbanBoard = new KanbanBoard(
       containerEl,
       this.app,

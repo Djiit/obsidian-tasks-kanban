@@ -13,6 +13,7 @@ import {
   getSort,
   getTags,
   getTitle,
+  mergeQueries,
   parseQuery,
   serializeQuery,
   withSort,
@@ -42,6 +43,8 @@ export class KanbanBoard {
   private tasks: Task[] = [];
   /** The canonical board query: filters + sort. Bars edit slices of it. */
   private boardQuery: BoardQuery;
+  /** Shared base query merged on top of {@link boardQuery} at render time. */
+  private baseQuery: BoardQuery;
   /** Column IDs currently folded; persisted across reopens. */
   private collapsedColumns: Set<string>;
 
@@ -59,6 +62,7 @@ export class KanbanBoard {
     // Hydrate the canonical query from the persisted query string.
     const initial = persistence.get();
     this.boardQuery = parseQuery(initial.query).query;
+    this.baseQuery = parseQuery(persistence.getBaseQuery()).query;
     this.collapsedColumns = new Set(initial.collapsedColumns);
 
     // Search, sort, and query-edit controls sit above the board in a shared row.
@@ -202,6 +206,7 @@ export class KanbanBoard {
   reloadQueryFromPersistence(): void {
     const state = this.persistence.get();
     this.boardQuery = parseQuery(state.query).query;
+    this.baseQuery = parseQuery(this.persistence.getBaseQuery()).query;
     this.collapsedColumns = new Set(state.collapsedColumns);
     this.searchBar.setState({
       titleQuery: getTitle(this.boardQuery),
@@ -215,7 +220,8 @@ export class KanbanBoard {
    * Apply the canonical query (filter + sort) to the source tasks and re-render.
    */
   private applyQuery() {
-    this.tasks = applyBoardQuery(this.allTasks, this.boardQuery);
+    const merged = mergeQueries(this.baseQuery, this.boardQuery);
+    this.tasks = applyBoardQuery(this.allTasks, merged);
     this.distributeTasks();
   }
 

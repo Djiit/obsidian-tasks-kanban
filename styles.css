@@ -638,3 +638,31 @@
     font-family: var(--font-monospace);
     resize: vertical;
 }
+
+/* Settings: explanatory help text under a heading. */
+.tasks-kanban-settings-help {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+/* Settings: per-query parse-error list. */
+.tasks-kanban-settings-errors {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tasks-kanban-settings-errors:empty {
+    display: none;
+}
+
+.tasks-kanban-settings-error {
+    color: var(--text-error);
+    font-size: var(--font-ui-small);
+}
+
+/* Settings: spacing above the Save button row. */
+.tasks-kanban-settings-save {
+    margin-top: 16px;
+}

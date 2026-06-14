@@ -1,40 +1,80 @@
 import type { SortState } from "../utils/sortTasks";
 
 /**
- * The slice of board state that survives across board reopens and Obsidian
- * restarts.
- *
- * Filtering and sorting are persisted as a single canonical `query` string (see
- * {@link BoardQuery} / serializeQuery). Folded columns stay a separate concern.
+ * A single saved query: a named view on the board. Its `query` holds only the
+ * view's own lines (its slice); at render time it is merged on top of the
+ * shared base query (see {@link PluginData.baseQuery}).
  */
-export interface BoardState {
-  /** Canonical board query (filters + sort), serialized one instruction per line. */
+export interface SavedQuery {
+  /** Stable identifier (crypto.randomUUID()), used to match open boards. */
+  id: string;
+  /** Display name, shown in the picker and on the board's tab. */
+  name: string;
+  /** Canonical query lines for this view's own slice (no base prefix). */
   query: string;
-  /** Column IDs (see KanbanColumnConfig.id) that are currently folded. */
+  /** Column IDs (see KanbanColumnConfig.id) folded on this view's board. */
   collapsedColumns: string[];
 }
 
-export const DEFAULT_BOARD_STATE: BoardState = {
-  query: "",
-  collapsedColumns: [],
+/**
+ * The persisted plugin data.
+ *
+ * `baseQuery` is a shared prefix merged into every board (the base board and
+ * each saved query). The base board is itself openable as the default view.
+ */
+export interface PluginData {
+  /** Shared query prefix applied to every board. */
+  baseQuery: string;
+  /** Folded columns for the base-only board. */
+  baseCollapsedColumns: string[];
+  /** User-managed saved queries (board views). */
+  savedQueries: SavedQuery[];
+}
+
+/** Reserved id for the base-only board (the default view). */
+export const BASE_BOARD_ID = "__base__";
+
+export const DEFAULT_PLUGIN_DATA: PluginData = {
+  baseQuery: "",
+  baseCollapsedColumns: [],
+  savedQueries: [],
 };
 
 /**
  * The shape of a data file written before the canonical-query model. Read once on
- * load to migrate `selectedTags`/`sortState` into {@link BoardState.query}, then
- * never written again. All fields optional — old files may carry any subset.
+ * load to migrate `selectedTags`/`sortState` into a query string, then never
+ * written again. All fields optional — old files may carry any subset.
  */
 export interface LegacyBoardState {
   sortState?: SortState;
   /** Bare tag names (no leading `#`). */
   selectedTags?: string[];
+  /** Single-query model that preceded multiple saved queries. */
+  query?: string;
+  /** Folded columns under the single-query model. */
+  collapsedColumns?: string[];
 }
 
 /**
- * Accessor passed down to the board so it can read the hydrated state and write
- * changes back, without knowing how (or where) the plugin persists them.
+ * The own-slice state a single board reads and writes. Filtering and sorting are
+ * persisted as a canonical query string; folded columns stay separate.
+ */
+export interface BoardOwnState {
+  /** This view's own query lines (without the base prefix). */
+  query: string;
+  /** Column IDs currently folded on this board. */
+  collapsedColumns: string[];
+}
+
+/**
+ * Accessor passed down to a board so it can read/write its own slice and read the
+ * shared base prefix, without knowing how (or where) the plugin persists them.
  */
 export interface BoardStatePersistence {
-  get(): BoardState;
-  save(state: BoardState): void | Promise<void>;
+  /** This board's own slice (query lines + folded columns). */
+  get(): BoardOwnState;
+  /** The shared base query prefix, merged on top of {@link get}'s query. */
+  getBaseQuery(): string;
+  /** Persist this board's own slice. Never writes the base prefix. */
+  save(state: BoardOwnState): void | Promise<void>;
 }

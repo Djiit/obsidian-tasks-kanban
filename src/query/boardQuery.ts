@@ -177,6 +177,27 @@ function serializeFilter(filter: FilterInstruction): string {
   }
 }
 
+/** Whether a sort state is the default (no explicit `sort by`). */
+export function isDefaultSort(sort: SortState): boolean {
+  return (
+    sort.field === DEFAULT_SORT_STATE.field &&
+    sort.direction === DEFAULT_SORT_STATE.direction
+  );
+}
+
+/**
+ * Merge a shared base query with a view's overlay query. Filters concatenate
+ * (base first), so the merge reads exactly like typing the base lines followed
+ * by the overlay lines — tags stay OR-ed, descriptions AND-ed. The overlay's
+ * sort wins unless it is the default, in which case the base sort applies.
+ */
+export function mergeQueries(base: BoardQuery, overlay: BoardQuery): BoardQuery {
+  return {
+    filters: [...base.filters, ...overlay.filters],
+    sort: isDefaultSort(overlay.sort) ? base.sort : overlay.sort,
+  };
+}
+
 /**
  * Apply a query to a list of tasks: filter, then sort. Returns a new array and
  * never mutates the input. Sorting is delegated to {@link sortTasks}.
