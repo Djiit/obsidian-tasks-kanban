@@ -2,6 +2,18 @@
 
 A Kanban board view plugin for Obsidian that displays Tasks in a visual board layout.
 
+> [!NOTE]
+> **Why this and not another Kanban plugin?**
+> The key difference is *what a card is*:
+>
+> | Plugin | Cards are… | Built on |
+> |--------|------------|----------|
+> | [Kanban](https://github.com/mgmeyers/obsidian-kanban) | **notes** — a board is its own note, each card a line of Markdown living only on that board | self-contained board note |
+> | [Kanban Bases View](https://community.obsidian.md/plugins/kanban-bases-view) | **notes** — one card per note, columns from a frontmatter/Base property | [Obsidian Bases](https://help.obsidian.md/bases) |
+> | **Tasks Kanban** (this) | **tasks** — cards *are* your real tasks, wherever they already live in your vault | [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) |
+>
+> Because this plugin is built on Tasks, the board is a **live view over your existing tasks** (filtered, sorted, grouped) rather than a separate copy to keep in sync. Move a card and it rewrites the task's status in its source file. Choose this if your work already lives as `- [ ]` tasks scattered across your notes; choose a note-based board if you'd rather each card be a whole note.
+
 ## Features
 
 - **Kanban Board View**: Display your tasks in a Kanban-style board with a column per status
