@@ -37,25 +37,41 @@ npm run format      # Format code with Prettier
 
 ```
 obsidian-tasks-kanban/
+├── .github/workflows/ci.yml         # GitHub Actions CI
 ├── src/
-│   ├── main.ts                      # Plugin entry point
+│   ├── main.ts                      # Plugin entry point, commands, persistence
 │   ├── services/
-│   │   ├── TasksIntegration.ts      # Integration with Tasks plugin (events)
+│   │   ├── TasksIntegration.ts      # Integration with Tasks plugin + statuses
 │   │   └── TaskUpdater.ts           # Update task status in source files
 │   ├── views/
-│   │   └── TasksBoardView.ts         # Kanban view (ItemView)
+│   │   └── TasksBoardView.ts        # Kanban view (one per board id)
 │   ├── components/
-│   │   ├── KanbanBoard.ts           # Board logic (distributes tasks)
+│   │   ├── KanbanBoard.ts           # Board logic (query, grouping, columns)
+│   │   ├── KanbanLane.ts            # Swimlane (one per group)
 │   │   ├── KanbanColumn.ts          # Column component (drop zone)
-│   │   └── KanbanCard.ts            # Task card component (draggable)
-│   └── filters/
-│       └── TaskFilter.ts             # Task filtering (Tasks query syntax)
-├── styles.css                      # Kanban board styles
+│   │   ├── KanbanCard.ts            # Task card component (draggable)
+│   │   ├── SearchBar.ts             # Title + tag filter bar
+│   │   ├── SortBar.ts               # Sort control
+│   │   ├── GroupBar.ts              # Grouping control
+│   │   ├── QueryModal.ts            # Raw query editor
+│   │   └── BoardPickerModal.ts      # Saved-board picker
+│   ├── query/
+│   │   ├── boardQuery.ts            # Query parse/serialize/apply (filters+sort+group)
+│   │   └── savedBoards.ts           # Saved-board list helpers
+│   ├── utils/
+│   │   ├── statusColumns.ts         # Default + custom column resolution
+│   │   ├── groupTasks.ts            # Swimlane grouping
+│   │   ├── sortTasks.ts             # Sorting
+│   │   ├── searchFilter.ts          # Tag/title helpers
+│   │   └── taskChips.ts             # Card metadata chips
+│   ├── settings/
+│   │   └── SettingsTab.ts           # Base query + saved boards + columns editor
+│   └── types/
+│       └── persistence.ts           # Persisted data model
+├── styles.css                      # Board styles
 ├── manifest.json                   # Plugin manifest
 ├── package.json                    # Dependencies and scripts
-├── tsconfig.json                   # TypeScript configuration
-├── vitest.config.ts                # Vitest configuration
-└── README.md                       # Project documentation
+└── AGENTS.md                       # Development guidelines
 ```
 
 ## Architecture Notes

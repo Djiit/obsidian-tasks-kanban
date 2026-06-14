@@ -96,47 +96,6 @@ The search and sort/group bars above the board edit the same query visually; the
 
 ## Development
 
-### Project Structure
-
-```
-obsidian-tasks-kanban/
-├── .github/workflows/ci.yml         # GitHub Actions CI
-├── src/
-│   ├── main.ts                      # Plugin entry point, commands, persistence
-│   ├── services/
-│   │   ├── TasksIntegration.ts      # Integration with Tasks plugin + statuses
-│   │   └── TaskUpdater.ts           # Update task status in source files
-│   ├── views/
-│   │   └── TasksBoardView.ts        # Kanban view (one per board id)
-│   ├── components/
-│   │   ├── KanbanBoard.ts           # Board logic (query, grouping, columns)
-│   │   ├── KanbanLane.ts            # Swimlane (one per group)
-│   │   ├── KanbanColumn.ts          # Column component (drop zone)
-│   │   ├── KanbanCard.ts            # Task card component (draggable)
-│   │   ├── SearchBar.ts             # Title + tag filter bar
-│   │   ├── SortBar.ts               # Sort control
-│   │   ├── GroupBar.ts              # Grouping control
-│   │   ├── QueryModal.ts            # Raw query editor
-│   │   └── BoardPickerModal.ts      # Saved-board picker
-│   ├── query/
-│   │   ├── boardQuery.ts            # Query parse/serialize/apply (filters+sort+group)
-│   │   └── savedBoards.ts           # Saved-board list helpers
-│   ├── utils/
-│   │   ├── statusColumns.ts         # Default + custom column resolution
-│   │   ├── groupTasks.ts            # Swimlane grouping
-│   │   ├── sortTasks.ts             # Sorting
-│   │   ├── searchFilter.ts          # Tag/title helpers
-│   │   └── taskChips.ts             # Card metadata chips
-│   ├── settings/
-│   │   └── SettingsTab.ts           # Base query + saved boards + columns editor
-│   └── types/
-│       └── persistence.ts           # Persisted data model
-├── styles.css                      # Board styles
-├── manifest.json                   # Plugin manifest
-├── package.json                    # Dependencies and scripts
-└── AGENTS.md                       # Development guidelines
-```
-
 ### Building
 
 ```bash
@@ -145,24 +104,6 @@ npm install
 
 # Build for production (minified)
 npm run build
-
-# Development build (unminified)
-npm run build:dev
-
-# Watch mode for development
-npm run dev
-
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Lint and test
-npm run lint
-
-# Format code
-npm run format
 ```
 
 ### Development Commands (Obsidian CLI)
@@ -201,59 +142,6 @@ Tests use Vitest with JSDom environment. Test files are in the `tests/` director
 npm test        # Run all tests once
 npm run test:watch  # Watch mode for development
 ```
-
-## Architecture Notes
-
-### Tasks Integration
-
-The plugin integrates with Tasks via Obsidian's event system:
-- Listens to `obsidian-tasks-plugin:cache-update` for real-time task updates
-- Uses `obsidian-tasks-plugin:request-cache-update` to request initial data
-- Accesses task data from the event payload
-
-### Drag & Drop Implementation
-
-- **Native HTML5 API**: Uses standard Drag & Drop events
-- **Data Transfer**: Custom MIME types for task metadata
-- **Status Update**: On drop, updates the task status in the source file
-- **Auto-refresh**: Tasks plugin detects file changes and triggers cache update
-
-### Type Definitions
-
-The plugin defines its own `Task` interface to match the Tasks plugin's Task structure, allowing type-safe access to task properties.
-
-### Styling
-
-Uses Obsidian's CSS variables for theme compatibility:
-- `--background-primary`, `--background-secondary`, `--background-tertiary`
-- `--text-normal`, `--text-muted`, `--text-error`, `--text-warning`, `--text-success`
-- `--background-modifier-border`, `--background-modifier-border-hover`
-
-## Future Enhancements
-
-- [x] Configurable columns (custom status-symbol columns per board)
-- [x] Grouping by status, priority, tags, path, folder, or filename
-- [x] Multiple saved boards, each with its own query and columns
-- [ ] Column reordering via drag & drop
-- [ ] Save view configuration in file frontmatter
-- [ ] Mobile touch support for drag & drop
-- [ ] Batch status updates
-- [ ] Undo/Redo support
-
-## Gotchas
-
-- **Task ID Format**: Tasks plugin uses `^task-id` format for task identification
-- **Status Symbols**: Tasks uses single character symbols (space, x, /, -, h, etc.)
-- **File Access**: Use `app.vault.read()` and `app.vault.write()` for file operations
-- **Event Timing**: Tasks may emit multiple cache-update events on startup
-- **Duplicate Tasks**: Always deduplicate tasks by ID before processing
-
-## CI/CD
-
-GitHub Actions workflow (`.github/workflows/ci.yml`):
-- Runs on push to `main` and `develop` branches
-- Runs on pull requests to `main`
-- Steps: Install → Test → Build
 
 ## License
 
