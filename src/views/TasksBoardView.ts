@@ -1,4 +1,4 @@
-import { ItemView, type WorkspaceLeaf } from "obsidian";
+import { ItemView, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 
 import { TasksIntegration, type Task } from "../services/TasksIntegration";
 import { KanbanBoard } from "../components/KanbanBoard";
@@ -73,8 +73,10 @@ export class TasksBoardView extends ItemView {
     return { ...super.getState(), queryId: this.queryId };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async setState(state: BoardViewState, result: any): Promise<void> {
+  async setState(
+    state: BoardViewState,
+    result: ViewStateResult,
+  ): Promise<void> {
     const changed = !!state?.queryId && state.queryId !== this.queryId;
     if (state?.queryId) {
       this.queryId = state.queryId;

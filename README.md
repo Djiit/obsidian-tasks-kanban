@@ -143,6 +143,22 @@ npm test        # Run all tests once
 npm run test:watch  # Watch mode for development
 ```
 
+### Type Checking
+
+```bash
+npm run typecheck   # Type-check without emitting output
+```
+
+### Git Hooks
+
+[Husky](https://typicode.github.io/husky/) hooks are installed automatically on
+`npm install` (via the `prepare` script):
+
+- **pre-commit**: runs `lint-staged` (ESLint + Prettier on staged files) followed
+  by `npm run typecheck`.
+- **commit-msg**: validates the message with [commitlint](https://commitlint.js.org/)
+  against the [Conventional Commits](https://www.conventionalcommits.org/) spec.
+
 ## License
 
 MIT

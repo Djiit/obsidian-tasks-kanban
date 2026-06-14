@@ -19,9 +19,17 @@
 
 - Always ship tests with your code
 - Always run `npm run format` before finishing to format your changes with Prettier
-- Always run linters, tests and build scripts to validate your work
+- Always run linters, the typecheck, tests and build scripts to validate your work
 - Use Test Driven Development (TDD) until asked otherwise
 - Prefer minimal, focused changes
+- Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/) (enforced by commitlint)
+
+### Git Hooks
+
+Husky runs checks automatically (installed via the `prepare` script on `npm install`):
+
+- **pre-commit**: `lint-staged` (ESLint `--fix` + Prettier on staged files) then `npm run typecheck`
+- **commit-msg**: `commitlint` validates the message against Conventional Commits
 
 ### Build Process
 
@@ -30,6 +38,7 @@ npm install          # Install dependencies
 npm run build        # Production build (minified)
 npm run dev          # Development build with watch
 npm test             # Run unit tests
+npm run typecheck    # Type-check with tsc (no emit)
 npm run format      # Format code with Prettier
 ```
 
