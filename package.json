@@ -1,6 +1,6 @@
 {
   "name": "obsidian-tasks-kanban",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Kanban board view for Obsidian Tasks",
   "main": "main.js",
   "scripts": {
