@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.7.0...0.8.0) (2026-06-14)
+
+
+### Features
+
+* add custom columns ([5a43516](https://github.com/Djiit/obsidian-tasks-kanban/commit/5a435169f3cf11062ac26a08c7e5b397be9d38d7))
+* add settings tab ([d2ec9dd](https://github.com/Djiit/obsidian-tasks-kanban/commit/d2ec9dd3a52e63299a9183b817f0dc880f85feb3))
+* support multiple saved queries ([b59081c](https://github.com/Djiit/obsidian-tasks-kanban/commit/b59081c3a194289c21df9e0ba7e0b0a39b4ccb94))
+
+
+### Bug Fixes
+
+* improve card layout ([2d0c72e](https://github.com/Djiit/obsidian-tasks-kanban/commit/2d0c72e3414473eb2a2250b5fc81f984de1e4cca))
+* save whole boards config and not just queries, add grouping ([a0fde69](https://github.com/Djiit/obsidian-tasks-kanban/commit/a0fde69c1679df58800485cef7cc23d116adcc3f))
+
 ## [0.7.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.6.0...0.7.0) (2026-06-12)
 
 
