@@ -7,6 +7,11 @@ import {
   type SortField,
   type SortState,
 } from "../utils/sortTasks";
+import {
+  DEFAULT_GROUP_STATE,
+  type GroupField,
+  type GroupState,
+} from "../utils/groupTasks";
 
 /**
  * The canonical, line-based query that drives a board's filtering and sorting.
@@ -21,6 +26,7 @@ import {
  *   tag includes #<tag>
  *   description includes <text>
  *   sort by <due|scheduled|start|created|priority> [reverse]
+ *   group by <status|priority|due|…|tags|folder|filename> [reverse]
  *
  * Any other line — including valid-but-unsupported Tasks instructions like
  * `path includes …` or `priority is high` — is reported as an error by
@@ -32,6 +38,8 @@ export interface BoardQuery {
   filters: FilterInstruction[];
   /** Ordering, reusing the same {@link SortState} the sort bar produces. */
   sort: SortState;
+  /** Swimlane grouping, reusing the {@link GroupState} the group bar produces. */
+  group: GroupState;
 }
 
 /**
@@ -42,10 +50,11 @@ export type FilterInstruction =
   | { kind: "tag"; value: string }
   | { kind: "description"; value: string };
 
-/** An empty query: no filters, no sorting. */
+/** An empty query: no filters, no sorting, no grouping. */
 export const EMPTY_QUERY: BoardQuery = {
   filters: [],
   sort: { ...DEFAULT_SORT_STATE },
+  group: { ...DEFAULT_GROUP_STATE },
 };
 
 /**
@@ -70,9 +79,43 @@ const SORT_FIELD_TO_KEYWORD: Partial<Record<SortField, string>> = {
   createdDate: "created",
 };
 
+/** Maps the Tasks `group by` keyword to our internal {@link GroupField}. */
+const GROUP_KEYWORD_TO_FIELD: Record<string, GroupField> = {
+  status: "status",
+  priority: "priority",
+  due: "dueDate",
+  scheduled: "scheduledDate",
+  start: "startDate",
+  done: "doneDate",
+  created: "createdDate",
+  cancelled: "cancelledDate",
+  happens: "happens",
+  tags: "tags",
+  path: "path",
+  folder: "folder",
+  filename: "filename",
+};
+
+/** Inverse of {@link GROUP_KEYWORD_TO_FIELD}, for serialization. */
+const GROUP_FIELD_TO_KEYWORD: Partial<Record<GroupField, string>> = {
+  status: "status",
+  priority: "priority",
+  dueDate: "due",
+  scheduledDate: "scheduled",
+  startDate: "start",
+  doneDate: "done",
+  createdDate: "created",
+  cancelledDate: "cancelled",
+  happens: "happens",
+  tags: "tags",
+  path: "path",
+  folder: "folder",
+  filename: "filename",
+};
+
 /** One-line summary of the supported syntax, used in error messages. */
 const SUPPORTED_SYNTAX =
-  "supported: tag includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse]";
+  "supported: tag includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|due|scheduled|start|done|created|cancelled|happens|tags|path|folder|filename> [reverse]";
 
 /**
  * Parse a multi-line query string into a {@link BoardQuery}. One instruction per
@@ -86,6 +129,7 @@ export function parseQuery(input: string): {
 } {
   const filters: FilterInstruction[] = [];
   let sort: SortState = { ...DEFAULT_SORT_STATE };
+  let group: GroupState = { ...DEFAULT_GROUP_STATE };
   const errors: string[] = [];
 
   const lines = input.split("\n");
@@ -104,18 +148,23 @@ export function parseQuery(input: string): {
       sort = result.sort;
       return;
     }
+    if (result.group) {
+      group = result.group;
+      return;
+    }
     if (result.filter) {
       filters.push(result.filter);
     }
   });
 
-  return { query: { filters, sort }, errors };
+  return { query: { filters, sort, group }, errors };
 }
 
 /** Parse one already-trimmed, non-empty line. */
 function parseLine(line: string): {
   filter?: FilterInstruction;
   sort?: SortState;
+  group?: GroupState;
   error?: string;
 } {
   // sort by <field> [reverse]
@@ -129,6 +178,19 @@ function parseLine(line: string): {
     }
     const direction: SortDirection = sortMatch[2] ? "desc" : "asc";
     return { sort: { field, direction } };
+  }
+
+  // group by <field> [reverse]
+  const groupMatch = /^group\s+by\s+(\S+)(?:\s+(reverse))?$/i.exec(line);
+  if (groupMatch) {
+    const field = GROUP_KEYWORD_TO_FIELD[groupMatch[1].toLowerCase()];
+    if (!field) {
+      return {
+        error: `unknown group field "${groupMatch[1]}" (${SUPPORTED_SYNTAX})`,
+      };
+    }
+    const direction: SortDirection = groupMatch[2] ? "desc" : "asc";
+    return { group: { field, direction } };
   }
 
   // tag includes <tag>
@@ -165,6 +227,12 @@ export function serializeQuery(query: BoardQuery): string {
     lines.push(`sort by ${sortKeyword}${reverse}`);
   }
 
+  const groupKeyword = GROUP_FIELD_TO_KEYWORD[query.group.field];
+  if (groupKeyword) {
+    const reverse = query.group.direction === "desc" ? " reverse" : "";
+    lines.push(`group by ${groupKeyword}${reverse}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -185,16 +253,25 @@ export function isDefaultSort(sort: SortState): boolean {
   );
 }
 
+/** Whether a group state is the default (no explicit `group by`). */
+export function isDefaultGroup(group: GroupState): boolean {
+  return (
+    group.field === DEFAULT_GROUP_STATE.field &&
+    group.direction === DEFAULT_GROUP_STATE.direction
+  );
+}
+
 /**
  * Merge a shared base query with a view's overlay query. Filters concatenate
  * (base first), so the merge reads exactly like typing the base lines followed
  * by the overlay lines — tags stay OR-ed, descriptions AND-ed. The overlay's
- * sort wins unless it is the default, in which case the base sort applies.
+ * sort/group each win unless default, in which case the base value applies.
  */
 export function mergeQueries(base: BoardQuery, overlay: BoardQuery): BoardQuery {
   return {
     filters: [...base.filters, ...overlay.filters],
     sort: isDefaultSort(overlay.sort) ? base.sort : overlay.sort,
+    group: isDefaultGroup(overlay.group) ? base.group : overlay.group,
   };
 }
 
@@ -296,4 +373,14 @@ export function getSort(query: BoardQuery): SortState {
 /** Replace the sort slice; filters are preserved. */
 export function withSort(query: BoardQuery, sort: SortState): BoardQuery {
   return { ...query, sort: { ...sort } };
+}
+
+/** The group slice. */
+export function getGroup(query: BoardQuery): GroupState {
+  return query.group;
+}
+
+/** Replace the group slice; filters and sort are preserved. */
+export function withGroup(query: BoardQuery, group: GroupState): BoardQuery {
+  return { ...query, group: { ...group } };
 }

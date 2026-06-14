@@ -6,8 +6,8 @@ import {
 } from "obsidian";
 
 import { parseQuery } from "../query/boardQuery";
-import { createSavedQuery } from "../query/savedQueries";
-import type { SavedQuery } from "../types/persistence";
+import { createSavedBoard } from "../query/savedBoards";
+import type { SavedBoard } from "../types/persistence";
 import type TasksKanbanPlugin from "../main";
 
 const DOCS_URL =
@@ -18,23 +18,24 @@ const QUERY_PLACEHOLDER = [
   "tag includes #work",
   "description includes write tests",
   "sort by due reverse",
+  "group by priority",
 ].join("\n");
 
 /**
  * Settings tab for the Tasks Kanban plugin.
  *
- * Edits the shared base query plus a list of saved queries (board views). All
- * edits are kept in working copies and committed together via Save; the Save
- * button is disabled while any query has parse errors.
+ * Edits the shared base query plus a list of saved boards (views). All edits are
+ * kept in working copies and committed together via Save; the Save button is
+ * disabled while any query has parse errors.
  */
 export class TasksKanbanSettingsTab extends PluginSettingTab {
   private plugin: TasksKanbanPlugin;
 
   // Working copies, committed on Save.
   private baseQuery = "";
-  private savedQueries: SavedQuery[] = [];
+  private savedBoards: SavedBoard[] = [];
 
-  // Parse-error state, keyed by field ("base" or a saved-query id).
+  // Parse-error state, keyed by field ("base" or a saved-board id).
   private errors = new Map<string, string[]>();
   private saveButton: ButtonComponent | null = null;
 
@@ -47,7 +48,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     // Seed working copies from the plugin's current data each time the tab opens.
     const data = this.plugin.getPluginData();
     this.baseQuery = data.baseQuery;
-    this.savedQueries = data.savedQueries.map((q) => ({ ...q }));
+    this.savedBoards = data.savedBoards.map((b) => ({ ...b }));
     this.errors.clear();
 
     this.render();
@@ -70,15 +71,15 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       this.baseQuery = value;
     });
 
-    new Setting(containerEl).setName("Saved queries").setHeading();
+    new Setting(containerEl).setName("Saved boards").setHeading();
 
-    for (const saved of this.savedQueries) {
-      this.renderSavedQuery(containerEl, saved);
+    for (const board of this.savedBoards) {
+      this.renderSavedBoard(containerEl, board);
     }
 
     new Setting(containerEl).addButton((button) => {
-      button.setButtonText("Add saved query").onClick(() => {
-        this.savedQueries.push(createSavedQuery("New query"));
+      button.setButtonText("Add saved board").onClick(() => {
+        this.savedBoards.push(createSavedBoard("New board"));
         this.render();
       });
     });
@@ -96,30 +97,30 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     saveSetting.settingEl.addClass("tasks-kanban-settings-save");
   }
 
-  /** Render a saved query's name input, query textarea, and delete button. */
-  private renderSavedQuery(containerEl: HTMLElement, saved: SavedQuery): void {
+  /** Render a saved board's name input, query textarea, and delete button. */
+  private renderSavedBoard(containerEl: HTMLElement, board: SavedBoard): void {
     new Setting(containerEl)
       .setName("Name")
       .addText((text) => {
-        text.setValue(saved.name).onChange((value) => {
-          saved.name = value;
+        text.setValue(board.name).onChange((value) => {
+          board.name = value;
         });
       })
       .addExtraButton((button) => {
         button
           .setIcon("trash")
-          .setTooltip("Delete saved query")
+          .setTooltip("Delete saved board")
           .onClick(() => {
-            this.savedQueries = this.savedQueries.filter(
-              (q) => q.id !== saved.id,
+            this.savedBoards = this.savedBoards.filter(
+              (b) => b.id !== board.id,
             );
-            this.errors.delete(saved.id);
+            this.errors.delete(board.id);
             this.render();
           });
       });
 
-    this.renderQueryField(containerEl, saved.id, saved.query, (value) => {
-      saved.query = value;
+    this.renderQueryField(containerEl, board.id, board.query, (value) => {
+      board.query = value;
     });
   }
 
@@ -196,6 +197,6 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     if (this.hasErrors()) {
       return;
     }
-    await this.plugin.saveSettings(this.baseQuery, this.savedQueries);
+    await this.plugin.saveSettings(this.baseQuery, this.savedBoards);
   }
 }

@@ -183,8 +183,116 @@
     background-color: var(--background-primary);
 }
 
-/* Kanban board */
+/* Group bar — mirrors the sort bar. */
+.tasks-kanban-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.tasks-kanban-group-label {
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+}
+
+.tasks-kanban-group-select {
+    padding: 6px 10px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    font-size: var(--font-ui-small);
+    cursor: pointer;
+}
+
+.tasks-kanban-group-direction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.tasks-kanban-group-direction:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.tasks-kanban-group-direction-disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.tasks-kanban-group-direction-disabled:hover {
+    background-color: var(--background-primary);
+}
+
+/* Kanban board — a vertical stack of swimlanes. */
 .tasks-kanban-board {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 12px;
+}
+
+/* Swimlane — an optional header above a horizontal row of columns. */
+.tasks-kanban-lane {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    /* Ungrouped (single lane): fill the board height so columns scroll inside.
+       Overridden below when grouping is active. */
+    flex: 1 1 auto;
+}
+
+.tasks-kanban-lane-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    font-size: var(--font-ui-small);
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    padding: 2px 4px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    user-select: none;
+}
+
+.tasks-kanban-lane-header:hover {
+    color: var(--text-normal);
+}
+
+/* Lane fold caret — points down when open, right when collapsed. */
+.tasks-kanban-lane-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 20px;
+    transition: transform 0.15s ease;
+}
+
+.tasks-kanban-lane-collapsed .tasks-kanban-lane-caret {
+    transform: rotate(-90deg);
+}
+
+/* Hide a collapsed lane's body. Scoped to the collapsed lane so it outweighs
+   the `.tasks-kanban-board-grouped .tasks-kanban-lane-columns` display rule. */
+.tasks-kanban-lane-collapsed .tasks-kanban-lane-columns {
+    display: none;
+}
+
+.tasks-kanban-lane-columns {
     display: flex;
     flex-direction: row;
     gap: 16px;
@@ -192,7 +300,18 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-x: auto;
-    padding-bottom: 12px;
+    padding-bottom: 4px;
+}
+
+/* Grouped board: lanes size to their content and the board scrolls vertically,
+   rather than competing for a fixed height (which collapsed tall lanes). Each
+   lane's columns grow to fit all their cards — the whole board scrolls. */
+.tasks-kanban-board-grouped .tasks-kanban-lane {
+    flex: 0 0 auto;
+}
+
+.tasks-kanban-board-grouped .tasks-kanban-lane-columns {
+    flex: 0 0 auto;
 }
 
 /* Column */
@@ -228,7 +347,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 20px;
     transition: transform 0.15s ease;
 }
 
@@ -256,8 +375,15 @@
     flex-direction: column;
     gap: 8px;
     padding: 8px;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 60px;
     overflow-y: auto;
+}
+
+/* Grouped lanes have no fixed height: columns grow to fit every card and the
+   whole board scrolls vertically (no per-column internal scroll). */
+.tasks-kanban-board-grouped .tasks-kanban-column-cards {
+    overflow-y: visible;
 }
 
 /* Collapsed (folded) column — shrinks to a narrow vertical strip */

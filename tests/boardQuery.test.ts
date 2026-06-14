@@ -1,18 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
     applyBoardQuery,
+    getGroup,
     getSort,
     getTags,
     getTitle,
+    isDefaultGroup,
     isDefaultSort,
     mergeQueries,
     parseQuery,
     serializeQuery,
+    withGroup,
     withSort,
     withTags,
     withTitle,
 } from '../src/query/boardQuery';
 import { DEFAULT_SORT_STATE } from '../src/utils/sortTasks';
+import { DEFAULT_GROUP_STATE } from '../src/utils/groupTasks';
 import type { Task } from '../src/services/TasksIntegration';
 
 function createTask(overrides: Partial<Task> = {}): Task {
@@ -309,5 +313,74 @@ describe('mergeQueries', () => {
         expect(ids(applyBoardQuery(tasks, mergeQueries(base, overlay)))).toEqual([
             'keep',
         ]);
+    });
+
+    it('keeps the base group when the overlay group is default', () => {
+        const base = parseQuery('group by priority').query;
+        const overlay = parseQuery('tag includes #view').query;
+        expect(mergeQueries(base, overlay).group).toEqual(base.group);
+    });
+
+    it('lets a non-default overlay group override the base group', () => {
+        const base = parseQuery('group by priority').query;
+        const overlay = parseQuery('group by status reverse').query;
+        expect(mergeQueries(base, overlay).group).toEqual(overlay.group);
+    });
+});
+
+describe('group by parsing', () => {
+    it('parses a group field and reverse', () => {
+        expect(parseQuery('group by priority').query.group).toEqual({
+            field: 'priority',
+            direction: 'asc',
+        });
+        expect(parseQuery('group by due reverse').query.group).toEqual({
+            field: 'dueDate',
+            direction: 'desc',
+        });
+    });
+
+    it('maps Tasks keywords to internal fields', () => {
+        expect(parseQuery('group by folder').query.group.field).toBe('folder');
+        expect(parseQuery('group by tags').query.group.field).toBe('tags');
+        expect(parseQuery('group by done').query.group.field).toBe('doneDate');
+    });
+
+    it('reports an unknown group field as an error', () => {
+        const { errors } = parseQuery('group by nonsense');
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain('unknown group field');
+    });
+
+    it('last group by wins', () => {
+        expect(parseQuery('group by priority\ngroup by status').query.group.field).toBe(
+            'status',
+        );
+    });
+
+    it('round-trips through serializeQuery', () => {
+        const input = 'tag includes #work\nsort by due reverse\ngroup by priority';
+        const { query } = parseQuery(input);
+        expect(parseQuery(serializeQuery(query)).query).toEqual(query);
+    });
+});
+
+describe('isDefaultGroup', () => {
+    it('is true for the default group state', () => {
+        expect(isDefaultGroup({ ...DEFAULT_GROUP_STATE })).toBe(true);
+    });
+
+    it('is false when the field differs', () => {
+        expect(isDefaultGroup({ field: 'priority', direction: 'asc' })).toBe(false);
+    });
+});
+
+describe('getGroup / withGroup', () => {
+    it('replaces the group slice, preserving filters and sort', () => {
+        const query = parseQuery('tag includes #work\nsort by due').query;
+        const next = withGroup(query, { field: 'priority', direction: 'desc' });
+        expect(getGroup(next)).toEqual({ field: 'priority', direction: 'desc' });
+        expect(next.filters).toEqual(query.filters);
+        expect(next.sort).toEqual(query.sort);
     });
 });

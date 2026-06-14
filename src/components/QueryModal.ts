@@ -41,7 +41,7 @@ export class QueryModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "tasks-kanban-query-modal-help",
-      text: "One instruction per line. Supported: tag includes, description includes, and sort by.",
+      text: "One instruction per line. Supported: tag includes, description includes, sort by, and group by.",
     });
 
     // Literal query syntax shown as an example; intentionally verbatim.
@@ -49,6 +49,7 @@ export class QueryModal extends Modal {
       "tag includes #work",
       "description includes write tests",
       "sort by due reverse",
+      "group by priority",
     ].join("\n");
 
     this.textarea = contentEl.createEl("textarea", {

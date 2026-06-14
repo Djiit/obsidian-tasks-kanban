@@ -2,20 +2,24 @@ import { setIcon, type App } from "obsidian";
 
 import type { Task } from "../services/TasksIntegration";
 import { TasksIntegration } from "../services/TasksIntegration";
-import { KanbanColumn } from "./KanbanColumn";
+import { KanbanLane } from "./KanbanLane";
 import { SearchBar } from "./SearchBar";
 import { SortBar } from "./SortBar";
+import { GroupBar } from "./GroupBar";
 import { QueryModal } from "./QueryModal";
 import { buildColumns } from "../utils/statusColumns";
 import { getUniqueTags } from "../utils/searchFilter";
+import { groupTasks, type TaskGroup } from "../utils/groupTasks";
 import {
   applyBoardQuery,
+  getGroup,
   getSort,
   getTags,
   getTitle,
   mergeQueries,
   parseQuery,
   serializeQuery,
+  withGroup,
   withSort,
   withTags,
   withTitle,
@@ -33,20 +37,23 @@ export class KanbanBoard {
   private app: App;
   private boardEl!: HTMLElement;
   private tasksIntegration: TasksIntegration;
-  private columns: KanbanColumn[] = [];
+  private lanes: KanbanLane[] = [];
+  /** Group keys currently rendered, parallel to {@link lanes}; for reconcile. */
+  private laneKeys: string[] = [];
   private searchBar: SearchBar;
   private sortBar: SortBar;
+  private groupBar: GroupBar;
   private persistence: BoardStatePersistence;
   /** Source of truth: every task last received, before query filtering. */
   private allTasks: Task[] = [];
-  /** The tasks currently displayed (after the query's filtering and sorting). */
-  private tasks: Task[] = [];
-  /** The canonical board query: filters + sort. Bars edit slices of it. */
+  /** The canonical board query: filters + sort + group. Bars edit slices of it. */
   private boardQuery: BoardQuery;
   /** Shared base query merged on top of {@link boardQuery} at render time. */
   private baseQuery: BoardQuery;
   /** Column IDs currently folded; persisted across reopens. */
   private collapsedColumns: Set<string>;
+  /** Group keys (swimlane keys) currently folded; persisted across reopens. */
+  private collapsedGroups: Set<string>;
 
   constructor(
     container: HTMLElement,
@@ -64,6 +71,7 @@ export class KanbanBoard {
     this.boardQuery = parseQuery(initial.query).query;
     this.baseQuery = parseQuery(persistence.getBaseQuery()).query;
     this.collapsedColumns = new Set(initial.collapsedColumns);
+    this.collapsedGroups = new Set(initial.collapsedGroups);
 
     // Search, sort, and query-edit controls sit above the board in a shared row.
     const header = this.container.createDiv({ cls: "tasks-kanban-header" });
@@ -93,11 +101,20 @@ export class KanbanBoard {
       },
       getSort(this.boardQuery),
     );
+    this.groupBar = new GroupBar(
+      header,
+      (state) => {
+        this.boardQuery = withGroup(this.boardQuery, state);
+        this.persistState();
+        this.applyQuery();
+      },
+      getGroup(this.boardQuery),
+    );
 
     this.createQueryButton(header);
 
-    // Initialize default columns (into their own board sub-element)
-    this.initColumns();
+    // The lanes render into their own board sub-element.
+    this.boardEl = this.container.createDiv({ cls: "tasks-kanban-board" });
   }
 
   /**
@@ -123,6 +140,7 @@ export class KanbanBoard {
         selectedTags: getTags(query),
       });
       this.sortBar.setState(getSort(query));
+      this.groupBar.setState(getGroup(query));
       this.persistState();
       this.applyQuery();
     }).open();
@@ -136,36 +154,31 @@ export class KanbanBoard {
     void this.persistence.save({
       query: serializeQuery(this.boardQuery),
       collapsedColumns: [...this.collapsedColumns],
+      collapsedGroups: [...this.collapsedGroups],
     });
   }
 
   /**
-   * Initialize columns derived from the vault's configured statuses
+   * Fold/unfold a column across every lane and persist. The collapsed set is
+   * keyed by column id, so the change applies to that column in all lanes.
    */
-  private initColumns() {
-    this.boardEl = this.container.createDiv({ cls: "tasks-kanban-board" });
-
-    const columnConfigs = buildColumns(this.tasksIntegration.getStatuses());
-    for (const config of columnConfigs) {
-      const columnEl = this.boardEl.createDiv({
-        cls: "tasks-kanban-column",
-      });
-      const column = new KanbanColumn(
-        columnEl,
-        config,
-        this.tasksIntegration,
-        this.collapsedColumns.has(config.id),
-        (collapsed) => {
-          if (collapsed) {
-            this.collapsedColumns.add(config.id);
-          } else {
-            this.collapsedColumns.delete(config.id);
-          }
-          this.persistState();
-        },
-      );
-      this.columns.push(column);
+  private toggleColumn(columnId: string, collapsed: boolean) {
+    if (collapsed) {
+      this.collapsedColumns.add(columnId);
+    } else {
+      this.collapsedColumns.delete(columnId);
     }
+    this.persistState();
+  }
+
+  /** Fold/unfold a swimlane (by group key) and persist. */
+  private toggleGroup(groupKey: string, collapsed: boolean) {
+    if (collapsed) {
+      this.collapsedGroups.add(groupKey);
+    } else {
+      this.collapsedGroups.delete(groupKey);
+    }
+    this.persistState();
   }
 
   /**
@@ -208,33 +221,69 @@ export class KanbanBoard {
     this.boardQuery = parseQuery(state.query).query;
     this.baseQuery = parseQuery(this.persistence.getBaseQuery()).query;
     this.collapsedColumns = new Set(state.collapsedColumns);
+    this.collapsedGroups = new Set(state.collapsedGroups);
     this.searchBar.setState({
       titleQuery: getTitle(this.boardQuery),
       selectedTags: getTags(this.boardQuery),
     });
     this.sortBar.setState(getSort(this.boardQuery));
+    this.groupBar.setState(getGroup(this.boardQuery));
     this.applyQuery();
   }
 
   /**
-   * Apply the canonical query (filter + sort) to the source tasks and re-render.
+   * Apply the canonical query (filter + sort), split into swimlanes by the group
+   * slice, and render. Grouping runs after filter+sort, mirroring Tasks.
    */
   private applyQuery() {
     const merged = mergeQueries(this.baseQuery, this.boardQuery);
-    this.tasks = applyBoardQuery(this.allTasks, merged);
-    this.distributeTasks();
+    const ordered = applyBoardQuery(this.allTasks, merged);
+    const groups = groupTasks(ordered, merged.group);
+    // When grouping is active the board is a vertical stack of content-sized
+    // lanes; when off it is a single lane that fills the height (today's layout).
+    this.boardEl.toggleClass(
+      "tasks-kanban-board-grouped",
+      merged.group.field !== "none",
+    );
+    this.renderLanes(groups);
   }
 
   /**
-   * Distribute tasks across columns based on their status
+   * Reconcile the rendered lanes with the given groups. When the ordered set of
+   * group keys is unchanged we keep the lanes and just refresh their tasks;
+   * otherwise we rebuild (lanes are cheap and grouping changes are infrequent).
    */
-  private distributeTasks() {
-    for (const column of this.columns) {
-      const statusTasks = this.tasks.filter(
-        (task) => task.status.type === column.config.type,
-      );
-      column.updateTasks(statusTasks);
+  private renderLanes(groups: TaskGroup[]) {
+    const keys = groups.map((g) => g.key);
+    const sameLanes =
+      keys.length === this.laneKeys.length &&
+      keys.every((key, i) => key === this.laneKeys[i]);
+
+    if (!sameLanes) {
+      for (const lane of this.lanes) {
+        lane.destroy();
+      }
+      this.lanes = [];
+      const columnConfigs = buildColumns(this.tasksIntegration.getStatuses());
+      for (const group of groups) {
+        this.lanes.push(
+          new KanbanLane(
+            this.boardEl,
+            group.key,
+            group.label,
+            columnConfigs,
+            this.tasksIntegration,
+            this.collapsedColumns,
+            this.collapsedGroups.has(group.key),
+            (columnId, collapsed) => this.toggleColumn(columnId, collapsed),
+            (groupKey, collapsed) => this.toggleGroup(groupKey, collapsed),
+          ),
+        );
+      }
+      this.laneKeys = keys;
     }
+
+    groups.forEach((group, i) => this.lanes[i].updateTasks(group.tasks));
   }
 
   /**
@@ -243,9 +292,11 @@ export class KanbanBoard {
   destroy() {
     this.searchBar.destroy();
     this.sortBar.destroy();
-    for (const column of this.columns) {
-      column.destroy();
+    this.groupBar.destroy();
+    for (const lane of this.lanes) {
+      lane.destroy();
     }
-    this.columns = [];
+    this.lanes = [];
+    this.laneKeys = [];
   }
 }
