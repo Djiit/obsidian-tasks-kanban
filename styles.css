@@ -297,7 +297,7 @@
 .tasks-kanban-card {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     padding: 10px;
     background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
@@ -316,16 +316,25 @@
     background-color: var(--background-modifier-active-hover);
 }
 
+/* Card header (status + tags) */
+.tasks-kanban-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
 /* Card status */
 .tasks-kanban-card-status {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    font-size: 12px;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    font-size: 10px;
     font-weight: 600;
+    flex-shrink: 0;
 }
 
 /* Status: Todo */
@@ -357,6 +366,7 @@
     font-size: 13px;
     line-height: 1.4;
     color: var(--text-normal);
+    word-break: break-word;
 }
 
 /* Card tags */
@@ -540,9 +550,9 @@
     }
     
     .tasks-kanban-card-status {
-        width: 24px;
-        height: 24px;
-        font-size: 14px;
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
     }
     
     /* Disable drag for touch devices (for now) */

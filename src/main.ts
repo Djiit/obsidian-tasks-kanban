@@ -103,17 +103,12 @@ export default class TasksKanbanPlugin extends Plugin {
       return;
     }
 
-    const rightLeaf = this.app.workspace.getRightLeaf(false);
-    if (!rightLeaf) {
-      return;
-    }
-    await rightLeaf.setViewState({
+    const leaf =
+      this.app.workspace.getLeaf() ?? this.app.workspace.createLeaf();
+    await leaf.setViewState({
       type: VIEW_TYPE,
       active: true,
     });
-
-    this.app.workspace.setActiveLeaf(
-      this.app.workspace.getLeavesOfType(VIEW_TYPE)[0],
-    );
+    this.app.workspace.setActiveLeaf(leaf);
   }
 }

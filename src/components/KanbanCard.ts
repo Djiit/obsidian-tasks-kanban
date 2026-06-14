@@ -46,30 +46,22 @@ export class KanbanCard {
     );
     this.container.setAttribute("draggable", "true");
 
+    // Header: status + tags
+    const headerEl = this.container.createDiv({
+      cls: "tasks-kanban-card-header",
+    });
+
     // Status indicator
-    const statusEl = this.container.createSpan({
+    const statusEl = headerEl.createSpan({
       cls: "tasks-kanban-card-status",
     });
     statusEl.setText(this.task.status.symbol);
     statusEl.setAttribute("title", this.task.status.name);
     statusEl.setAttribute("data-status-type", this.task.status.type);
 
-    // Description. Inline #tags are stripped first so they don't duplicate
-    // the tag chips below, then capped so a long task can't grow the card
-    // unbounded (the full text stays reachable via the tooltip).
-    const fullTitle = stripTags(this.task.description, this.task.tags);
-    const descEl = this.container.createSpan({
-      cls: "tasks-kanban-card-description",
-    });
-    const displayText = truncate(fullTitle);
-    descEl.setText(displayText);
-    if (displayText !== fullTitle) {
-      descEl.setAttribute("title", fullTitle);
-    }
-
     // Tags
     if (this.task.tags && this.task.tags.length > 0) {
-      const tagsEl = this.container.createDiv({
+      const tagsEl = headerEl.createDiv({
         cls: "tasks-kanban-card-tags",
       });
       for (const tag of this.task.tags) {
@@ -80,7 +72,18 @@ export class KanbanCard {
       }
     }
 
-    // Metadata chips: priority, dates, then dependency state.
+    // Content: description
+    const fullTitle = stripTags(this.task.description, this.task.tags);
+    const descEl = this.container.createDiv({
+      cls: "tasks-kanban-card-description",
+    });
+    const displayText = truncate(fullTitle);
+    descEl.setText(displayText);
+    if (displayText !== fullTitle) {
+      descEl.setAttribute("title", fullTitle);
+    }
+
+    // Footer: metadata chips (priority, dates, dependencies)
     this.renderChips();
 
     // Add drag start handler
