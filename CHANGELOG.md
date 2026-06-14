@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.7.0...0.8.0) (2026-06-14)
+
+
+### Features
+
+* add settings tab ([d2ec9dd](https://github.com/Djiit/obsidian-tasks-kanban/commit/d2ec9dd3a52e63299a9183b817f0dc880f85feb3))
+
+
+### Bug Fixes
+
+* improve card layout ([2d0c72e](https://github.com/Djiit/obsidian-tasks-kanban/commit/2d0c72e3414473eb2a2250b5fc81f984de1e4cca))
+
 ## [0.7.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.6.0...0.7.0) (2026-06-12)
 
 
