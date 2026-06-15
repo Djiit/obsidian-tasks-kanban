@@ -1,0 +1,47 @@
+{
+  "baseQuery": "",
+  "baseCollapsedColumns": [],
+  "baseCollapsedGroups": [],
+  "baseColumns": [],
+  "savedBoards": [
+    {
+      "id": "b1421bf9-de81-4bd2-873b-70355bd9bc77",
+      "name": "New query",
+      "query": "tag includes #work",
+      "collapsedColumns": [],
+      "collapsedGroups": [],
+      "columns": []
+    },
+    {
+      "id": "8c943e0a-b501-4be0-94c3-aee6ee0bdcba",
+      "name": "Untitled board",
+      "query": "tag includes #project-x\ntag includes #q2-2026\nsort by priority\ngroup by tags",
+      "collapsedColumns": [],
+      "collapsedGroups": [
+        "01 - Happy path.md",
+        "02 - Long descriptions.md",
+        "03 - Markdown in descriptions.md",
+        "04 - Status edge cases.md"
+      ],
+      "columns": [
+        {
+          "id": "f2309e64-184e-4e65-b997-fc7f677b815e",
+          "title": "everything",
+          "symbols": [
+            " ",
+            "x",
+            "/",
+            "-"
+          ]
+        },
+        {
+          "id": "8bada97f-163d-474e-bf6f-b3191e0caee1",
+          "title": "",
+          "symbols": [
+            "A"
+          ]
+        }
+      ]
+    }
+  ]
+}
