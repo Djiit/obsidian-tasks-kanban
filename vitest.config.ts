@@ -16,6 +16,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': '/src',
+            'obsidian': '/tests/__mocks__/obsidian.ts',
         },
     },
 });

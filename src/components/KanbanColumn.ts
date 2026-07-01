@@ -151,7 +151,6 @@ export class KanbanColumn {
     const cardsContainer = this.container.querySelector<HTMLElement>(
       ".tasks-kanban-column-cards",
     );
-    if (!cardsContainer) return;
 
     // Drag over - add visual feedback
     this.dragOverHandler = (e: DragEvent) => {
@@ -160,7 +159,6 @@ export class KanbanColumn {
       e.dataTransfer!.dropEffect = "move";
       this.container.addClass("tasks-kanban-column-drag-over");
     };
-    cardsContainer.addEventListener("dragover", this.dragOverHandler);
 
     // Drag enter
     this.dragEnterHandler = (e: DragEvent) => {
@@ -168,7 +166,6 @@ export class KanbanColumn {
       e.stopPropagation();
       this.container.addClass("tasks-kanban-column-drag-over");
     };
-    cardsContainer.addEventListener("dragenter", this.dragEnterHandler);
 
     // Drag leave
     this.dragLeaveHandler = (e: DragEvent) => {
@@ -176,7 +173,6 @@ export class KanbanColumn {
       e.stopPropagation();
       this.container.removeClass("tasks-kanban-column-drag-over");
     };
-    cardsContainer.addEventListener("dragleave", this.dragLeaveHandler);
 
     // Drop - handle the task status change
     this.dropHandler = (e: DragEvent) => {
@@ -211,50 +207,71 @@ export class KanbanColumn {
         this.config.dropSymbol,
       );
     };
-    cardsContainer.addEventListener("drop", this.dropHandler);
+
+    // Attach handlers to cards container (receives events when expanded)
+    if (cardsContainer) {
+      cardsContainer.addEventListener("dragover", this.dragOverHandler);
+      cardsContainer.addEventListener("dragenter", this.dragEnterHandler);
+      cardsContainer.addEventListener("dragleave", this.dragLeaveHandler);
+      cardsContainer.addEventListener("drop", this.dropHandler);
+    }
+
+    // Also attach to header so collapsed columns still accept drops.
+    // When the column is collapsed the cards container is display:none and
+    // cannot receive pointer/drag events, so the header becomes the drop zone.
+    const header = this.container.querySelector<HTMLElement>(
+      ".tasks-kanban-column-header",
+    );
+    if (header) {
+      header.addEventListener("dragover", this.dragOverHandler);
+      header.addEventListener("dragenter", this.dragEnterHandler);
+      header.addEventListener("dragleave", this.dragLeaveHandler);
+      header.addEventListener("drop", this.dropHandler);
+    }
   }
 
   /**
    * Clean up the column
    */
   destroy() {
-    if (this.dragOverHandler) {
+    const removeFromTargets = (handler: (e: DragEvent) => void) => {
       const cardsContainer = this.container.querySelector<HTMLElement>(
         ".tasks-kanban-column-cards",
       );
       if (cardsContainer) {
-        cardsContainer.removeEventListener("dragover", this.dragOverHandler);
+        cardsContainer.removeEventListener("dragover", handler);
+        cardsContainer.removeEventListener("dragenter", handler);
+        cardsContainer.removeEventListener("dragleave", handler);
+        cardsContainer.removeEventListener("drop", handler);
       }
+      const header = this.container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      );
+      if (header) {
+        header.removeEventListener("dragover", handler);
+        header.removeEventListener("dragenter", handler);
+        header.removeEventListener("dragleave", handler);
+        header.removeEventListener("drop", handler);
+      }
+    };
+
+    if (this.dragOverHandler) {
+      removeFromTargets(this.dragOverHandler);
       this.dragOverHandler = null;
     }
 
     if (this.dragEnterHandler) {
-      const cardsContainer = this.container.querySelector<HTMLElement>(
-        ".tasks-kanban-column-cards",
-      );
-      if (cardsContainer) {
-        cardsContainer.removeEventListener("dragenter", this.dragEnterHandler);
-      }
+      removeFromTargets(this.dragEnterHandler);
       this.dragEnterHandler = null;
     }
 
     if (this.dragLeaveHandler) {
-      const cardsContainer = this.container.querySelector<HTMLElement>(
-        ".tasks-kanban-column-cards",
-      );
-      if (cardsContainer) {
-        cardsContainer.removeEventListener("dragleave", this.dragLeaveHandler);
-      }
+      removeFromTargets(this.dragLeaveHandler);
       this.dragLeaveHandler = null;
     }
 
     if (this.dropHandler) {
-      const cardsContainer = this.container.querySelector<HTMLElement>(
-        ".tasks-kanban-column-cards",
-      );
-      if (cardsContainer) {
-        cardsContainer.removeEventListener("drop", this.dropHandler);
-      }
+      removeFromTargets(this.dropHandler);
       this.dropHandler = null;
     }
 

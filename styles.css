@@ -574,6 +574,17 @@
     background-color: var(--background-secondary);
 }
 
+/* Drag-over style for collapsed columns — the narrow strip gets an accent
+   border and its header background changes to signal that drops are accepted. */
+.tasks-kanban-column-collapsed.tasks-kanban-column-drag-over {
+    border-color: var(--interactive-accent);
+}
+
+.tasks-kanban-column-collapsed.tasks-kanban-column-drag-over .tasks-kanban-column-header {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
 /* Cursor for draggable elements */
 .tasks-kanban-card[draggable="true"] {
     cursor: grab;
