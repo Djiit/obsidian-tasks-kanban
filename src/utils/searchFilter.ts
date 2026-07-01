@@ -1,12 +1,14 @@
 import type { Task } from "../services/TasksIntegration";
 
 /**
- * The state of the top search bar: a free-text title query and a set of
- * selected tag names (bare, without a leading '#').
+ * The state of the top search bar: a free-text title query, a set of
+ * included tag names (bare, without a leading '#'), and a set of
+ * excluded tag names.
  */
 export interface SearchState {
   titleQuery: string;
   selectedTags: string[];
+  excludedTags: string[];
 }
 
 /**
