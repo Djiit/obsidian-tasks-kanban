@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.8.2...0.9.0) (2026-07-01)
+
+
+### Features
+
+* add 'tag not includes' filter to reverse tag query ([10d265c](https://github.com/Djiit/obsidian-tasks-kanban/commit/10d265c5132ecdcf2b46ade1a93ff4c345238baa))
+* add 'tag not includes' filter to reverse tag query ([2fa4430](https://github.com/Djiit/obsidian-tasks-kanban/commit/2fa4430fa0cf13004b026aa07162b6ca2862e822))
+
+
+### Bug Fixes
+
+* add test-vault sources ([25f32d9](https://github.com/Djiit/obsidian-tasks-kanban/commit/25f32d9489de0b16dfc84bfa8bffee106554aa17))
+* address PR review comments ([7a935e4](https://github.com/Djiit/obsidian-tasks-kanban/commit/7a935e419bf2c1d2bc29de3747ee3e78614c9d75))
+* address PR review comments ([00ffbf2](https://github.com/Djiit/obsidian-tasks-kanban/commit/00ffbf27e2425a9c9e893baaeec7971c84781f62))
+* allow dropping cards onto collapsed columns ([abb42d2](https://github.com/Djiit/obsidian-tasks-kanban/commit/abb42d245ed925bb0f377749efe02498ef5b30cd))
+* allow dropping cards onto collapsed columns ([75bb4ec](https://github.com/Djiit/obsidian-tasks-kanban/commit/75bb4ecba5bd51cb8797af48726988d1d51986ee)), closes [#21](https://github.com/Djiit/obsidian-tasks-kanban/issues/21)
+
 ## [0.8.2](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.8.1...0.8.2) (2026-06-14)
 
 
