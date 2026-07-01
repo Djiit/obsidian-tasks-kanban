@@ -13,8 +13,8 @@
     "test:watch": "vitest",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "prepare": "husky"
   },
   "keywords": [
@@ -26,6 +26,9 @@
   "nano-staged": {
     "src/**/*.{ts,tsx}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "tests/**/*.ts": [
       "prettier --write"
     ],
     "src/**/*.css": [

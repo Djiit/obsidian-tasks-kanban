@@ -8,12 +8,25 @@ class StubDataTransfer {
   private data = new Map<string, string>();
   dropEffect: DataTransfer["dropEffect"] = "move";
   effectAllowed: DataTransfer["effectAllowed"] = "move";
-  setData(format: string, data: string) { this.data.set(format, data); }
-  getData(format: string) { return this.data.get(format) ?? ""; }
-  clearData(format?: string) { if (format) this.data.delete(format); else this.data.clear(); }
-  get types() { return Array.from(this.data.keys()); }
-  get files() { return [] as File[]; }
-  get items() { return [] as DataTransferItemList; }
+  setData(format: string, data: string) {
+    this.data.set(format, data);
+  }
+  getData(format: string) {
+    return this.data.get(format) ?? "";
+  }
+  clearData(format?: string) {
+    if (format) this.data.delete(format);
+    else this.data.clear();
+  }
+  get types() {
+    return Array.from(this.data.keys());
+  }
+  get files() {
+    return [] as File[];
+  }
+  get items() {
+    return [] as DataTransferItemList;
+  }
 }
 
 /** Create a DragEvent-like event with the given type and optional data. */
@@ -41,13 +54,6 @@ const todoConfig: KanbanColumnConfig = {
   title: "Todo",
   symbols: [" "],
   dropSymbol: " ",
-};
-
-const doneConfig: KanbanColumnConfig = {
-  id: "done",
-  title: "Done",
-  symbols: ["x"],
-  dropSymbol: "x",
 };
 
 const TODO_TASK: Task = {
@@ -106,37 +112,78 @@ describe("KanbanColumn", () => {
 
   describe("drag events (expanded)", () => {
     it("adds drag-over class on dragover over cards container", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false);
-      const cards = container.querySelector<HTMLElement>(".tasks-kanban-column-cards")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+      );
+      const cards = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-cards",
+      )!;
       cards.dispatchEvent(dragEvent("dragover"));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(true);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(true);
       col.destroy();
     });
 
     it("removes drag-over class on dragleave from cards container", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false);
-      const cards = container.querySelector<HTMLElement>(".tasks-kanban-column-cards")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+      );
+      const cards = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-cards",
+      )!;
       cards.dispatchEvent(dragEvent("dragover"));
       cards.dispatchEvent(dragEvent("dragleave"));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(false);
       col.destroy();
     });
 
     it("calls updateTaskStatus on drop with valid task data", () => {
       const integration = mockIntegration([DONE_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, false);
-      const cards = container.querySelector<HTMLElement>(".tasks-kanban-column-cards")!;
-      const dt = stubDataTransfer({ "application/task-path": "notes.md", "application/task-line": "5" });
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        false,
+      );
+      const cards = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-cards",
+      )!;
+      const dt = stubDataTransfer({
+        "application/task-path": "notes.md",
+        "application/task-line": "5",
+      });
       cards.dispatchEvent(dragEvent("drop", dt));
-      expect(integration.taskUpdater.updateTaskStatus).toHaveBeenCalledWith(DONE_TASK, " ");
+      expect(integration.taskUpdater.updateTaskStatus).toHaveBeenCalledWith(
+        DONE_TASK,
+        " ",
+      );
       col.destroy();
     });
 
     it("does not call updateTaskStatus when task already belongs to this column", () => {
       const integration = mockIntegration([TODO_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, false);
-      const cards = container.querySelector<HTMLElement>(".tasks-kanban-column-cards")!;
-      const dt = stubDataTransfer({ "application/task-path": "notes.md", "application/task-line": "3" });
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        false,
+      );
+      const cards = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-cards",
+      )!;
+      const dt = stubDataTransfer({
+        "application/task-path": "notes.md",
+        "application/task-line": "3",
+      });
       cards.dispatchEvent(dragEvent("drop", dt));
       expect(integration.taskUpdater.updateTaskStatus).not.toHaveBeenCalled();
       col.destroy();
@@ -144,12 +191,24 @@ describe("KanbanColumn", () => {
 
     it("removes drag-over class on drop", () => {
       const integration = mockIntegration([DONE_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, false);
-      const cards = container.querySelector<HTMLElement>(".tasks-kanban-column-cards")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        false,
+      );
+      const cards = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-cards",
+      )!;
       cards.dispatchEvent(dragEvent("dragover"));
-      const dt = stubDataTransfer({ "application/task-path": "notes.md", "application/task-line": "5" });
+      const dt = stubDataTransfer({
+        "application/task-path": "notes.md",
+        "application/task-line": "5",
+      });
       cards.dispatchEvent(dragEvent("drop", dt));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(false);
       col.destroy();
     });
   });
@@ -158,37 +217,78 @@ describe("KanbanColumn", () => {
 
   describe("drag events (collapsed)", () => {
     it("adds drag-over class on dragover over header", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.dispatchEvent(dragEvent("dragover"));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(true);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(true);
       col.destroy();
     });
 
     it("removes drag-over class on dragleave from header", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.dispatchEvent(dragEvent("dragover"));
       header.dispatchEvent(dragEvent("dragleave"));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(false);
       col.destroy();
     });
 
     it("calls updateTaskStatus on drop over header with valid task data", () => {
       const integration = mockIntegration([DONE_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, true);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
-      const dt = stubDataTransfer({ "application/task-path": "notes.md", "application/task-line": "5" });
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        true,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
+      const dt = stubDataTransfer({
+        "application/task-path": "notes.md",
+        "application/task-line": "5",
+      });
       header.dispatchEvent(dragEvent("drop", dt));
-      expect(integration.taskUpdater.updateTaskStatus).toHaveBeenCalledWith(DONE_TASK, " ");
+      expect(integration.taskUpdater.updateTaskStatus).toHaveBeenCalledWith(
+        DONE_TASK,
+        " ",
+      );
       col.destroy();
     });
 
     it("does not call updateTaskStatus when task already belongs to the column", () => {
       const integration = mockIntegration([TODO_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, true);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
-      const dt = stubDataTransfer({ "application/task-path": "notes.md", "application/task-line": "3" });
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        true,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
+      const dt = stubDataTransfer({
+        "application/task-path": "notes.md",
+        "application/task-line": "3",
+      });
       header.dispatchEvent(dragEvent("drop", dt));
       expect(integration.taskUpdater.updateTaskStatus).not.toHaveBeenCalled();
       col.destroy();
@@ -196,19 +296,38 @@ describe("KanbanColumn", () => {
 
     it("removes drag-over class on drop over header", () => {
       const integration = mockIntegration([DONE_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, true);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        true,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.dispatchEvent(dragEvent("dragover"));
-      const dt = stubDataTransfer({ "application/task-path": "notes.md", "application/task-line": "5" });
+      const dt = stubDataTransfer({
+        "application/task-path": "notes.md",
+        "application/task-line": "5",
+      });
       header.dispatchEvent(dragEvent("drop", dt));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(false);
       col.destroy();
     });
 
     it("does not call updateTaskStatus when dataTransfer is missing", () => {
       const integration = mockIntegration([DONE_TASK]);
-      const col = new KanbanColumn(container, todoConfig, integration as any, true);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        integration as any,
+        true,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.dispatchEvent(dragEvent("drop"));
       expect(integration.taskUpdater.updateTaskStatus).not.toHaveBeenCalled();
       col.destroy();
@@ -220,36 +339,70 @@ describe("KanbanColumn", () => {
   describe("collapse toggle", () => {
     it("toggles collapsed state on header click", () => {
       const onToggle = vi.fn();
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false, onToggle);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+        onToggle,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.click();
-      expect(container.classList.contains("tasks-kanban-column-collapsed")).toBe(true);
+      expect(
+        container.classList.contains("tasks-kanban-column-collapsed"),
+      ).toBe(true);
       expect(onToggle).toHaveBeenCalledWith(true);
       col.destroy();
     });
 
     it("calls onToggle with false when expanding", () => {
       const onToggle = vi.fn();
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true, onToggle);
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+        onToggle,
+      );
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.click();
-      expect(container.classList.contains("tasks-kanban-column-collapsed")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-collapsed"),
+      ).toBe(false);
       expect(onToggle).toHaveBeenCalledWith(false);
       col.destroy();
     });
 
     it("setCollapsed updates state without firing callback", () => {
       const onToggle = vi.fn();
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false, onToggle);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+        onToggle,
+      );
       col.setCollapsed(true);
-      expect(container.classList.contains("tasks-kanban-column-collapsed")).toBe(true);
+      expect(
+        container.classList.contains("tasks-kanban-column-collapsed"),
+      ).toBe(true);
       expect(onToggle).not.toHaveBeenCalled();
       col.destroy();
     });
 
     it("setCollapsed is a no-op when state is already the same", () => {
       const onToggle = vi.fn();
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true, onToggle);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+        onToggle,
+      );
       col.setCollapsed(true);
       expect(onToggle).not.toHaveBeenCalled();
       col.destroy();
@@ -260,25 +413,49 @@ describe("KanbanColumn", () => {
 
   describe("collapsed state", () => {
     it("applies the collapsed class to the column container", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true);
-      expect(container.classList.contains("tasks-kanban-column-collapsed")).toBe(true);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+      );
+      expect(
+        container.classList.contains("tasks-kanban-column-collapsed"),
+      ).toBe(true);
       col.destroy();
     });
 
     it("does not apply the collapsed class when expanded", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false);
-      expect(container.classList.contains("tasks-kanban-column-collapsed")).toBe(false);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+      );
+      expect(
+        container.classList.contains("tasks-kanban-column-collapsed"),
+      ).toBe(false);
       col.destroy();
     });
 
     it("sets aria-expanded to false when collapsed", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+      );
       expect(container.getAttribute("aria-expanded")).toBe("false");
       col.destroy();
     });
 
     it("sets aria-expanded to true when expanded", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+      );
       expect(container.getAttribute("aria-expanded")).toBe("true");
       col.destroy();
     });
@@ -288,21 +465,39 @@ describe("KanbanColumn", () => {
 
   describe("destroy", () => {
     it("cleans up cards container drag listeners", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, false);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        false,
+      );
       col.destroy();
-      const cards = container.querySelector<HTMLElement>(".tasks-kanban-column-cards")!;
+      const cards = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-cards",
+      )!;
       // After destroy the column is still in the DOM but handlers are nulled,
       // so dispatching dragover should not add the class.
       cards.dispatchEvent(dragEvent("dragover"));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(false);
     });
 
     it("cleans up header drag listeners", () => {
-      const col = new KanbanColumn(container, todoConfig, mockIntegration([]) as any, true);
+      const col = new KanbanColumn(
+        container,
+        todoConfig,
+        mockIntegration([]) as any,
+        true,
+      );
       col.destroy();
-      const header = container.querySelector<HTMLElement>(".tasks-kanban-column-header")!;
+      const header = container.querySelector<HTMLElement>(
+        ".tasks-kanban-column-header",
+      )!;
       header.dispatchEvent(dragEvent("dragover"));
-      expect(container.classList.contains("tasks-kanban-column-drag-over")).toBe(false);
+      expect(
+        container.classList.contains("tasks-kanban-column-drag-over"),
+      ).toBe(false);
     });
   });
 });
