@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   applyBoardQuery,
+  getExcludedTags,
   getGroup,
   getSort,
   getTags,
@@ -10,6 +11,7 @@ import {
   mergeQueries,
   parseQuery,
   serializeQuery,
+  withExcludedTags,
   withGroup,
   withSort,
   withTags,
@@ -62,6 +64,14 @@ describe("parseQuery", () => {
       "tag includes #work\ntag includes home",
     );
     expect(getTags(query)).toEqual(["work", "home"]);
+    expect(errors).toEqual([]);
+  });
+
+  it('parses "tag not includes" and strips the leading #', () => {
+    const { query, errors } = parseQuery(
+      "tag not includes #book\ntag not includes movie",
+    );
+    expect(getExcludedTags(query)).toEqual(["book", "movie"]);
     expect(errors).toEqual([]);
   });
 
@@ -143,12 +153,26 @@ describe("serializeQuery / round-trip", () => {
     expect(serializeQuery(query)).toBe("tag includes #work");
   });
 
+  it('serializes "tag not includes" in reference-exact form', () => {
+    const { query } = parseQuery("tag not includes #book");
+    expect(serializeQuery(query)).toBe("tag not includes #book");
+  });
+
   it("serializes a mixed query deterministically", () => {
     const { query } = parseQuery(
       "tag includes #work\ndescription includes write\nsort by priority reverse",
     );
     expect(serializeQuery(query)).toBe(
       "tag includes #work\ndescription includes write\nsort by priority reverse",
+    );
+  });
+
+  it("serializes mixed include/exclude tags", () => {
+    const { query } = parseQuery(
+      "tag includes #work\ntag not includes #book\nsort by due",
+    );
+    expect(serializeQuery(query)).toBe(
+      "tag includes #work\ntag not includes #book\nsort by due",
     );
   });
 
@@ -160,6 +184,14 @@ describe("serializeQuery / round-trip", () => {
   it("round-trips to an equivalent query", () => {
     const source =
       "tag includes #a\ntag includes #b\ndescription includes thing\nsort by scheduled reverse";
+    const first = parseQuery(source).query;
+    const second = parseQuery(serializeQuery(first)).query;
+    expect(second).toEqual(first);
+  });
+
+  it("round-trips a query with mixed include/exclude tags", () => {
+    const source =
+      "tag includes #work\ntag not includes #book\ntag not includes #movie\ndescription includes read\nsort by due reverse";
     const first = parseQuery(source).query;
     const second = parseQuery(serializeQuery(first)).query;
     expect(second).toEqual(first);
@@ -202,6 +234,43 @@ describe("slice helpers", () => {
   it("withTags normalizes a leading #", () => {
     const updated = withTags(base, ["#home"]);
     expect(getTags(updated)).toEqual(["home"]);
+  });
+
+  it("withTags does not remove excluded tags", () => {
+    const q = parseQuery("tag includes #work\ntag not includes #book").query;
+    const updated = withTags(q, ["home"]);
+    expect(getTags(updated)).toEqual(["home"]);
+    expect(getExcludedTags(updated)).toEqual(["book"]);
+  });
+
+  it("getExcludedTags reads excluded tags", () => {
+    const q = parseQuery("tag includes #work\ntag not includes #book").query;
+    expect(getExcludedTags(q)).toEqual(["book"]);
+  });
+
+  it("getExcludedTags returns empty for no excludes", () => {
+    const q = parseQuery("tag includes #work").query;
+    expect(getExcludedTags(q)).toEqual([]);
+  });
+
+  it("withExcludedTags replaces excluded tags, preserving includes", () => {
+    const q = parseQuery("tag includes #work\ntag not includes #book").query;
+    const updated = withExcludedTags(q, ["movie"]);
+    expect(getTags(updated)).toEqual(["work"]);
+    expect(getExcludedTags(updated)).toEqual(["movie"]);
+  });
+
+  it("withExcludedTags normalizes a leading #", () => {
+    const q = parseQuery("tag includes #work").query;
+    const updated = withExcludedTags(q, ["#book"]);
+    expect(getExcludedTags(updated)).toEqual(["book"]);
+  });
+
+  it("withExcludedTags clears excluded tags when given empty array", () => {
+    const q = parseQuery("tag includes #work\ntag not includes #book").query;
+    const updated = withExcludedTags(q, []);
+    expect(getExcludedTags(updated)).toEqual([]);
+    expect(getTags(updated)).toEqual(["work"]);
   });
 
   it("withSort preserves filters", () => {
@@ -272,6 +341,63 @@ describe("applyBoardQuery", () => {
       "late",
       "none",
     ]);
+  });
+
+  it('excludes tasks matching a "tag not includes" filter', () => {
+    const tasks = [
+      createTask({ id: "work", tags: ["work"] }),
+      createTask({ id: "book", tags: ["book"] }),
+      createTask({ id: "both", tags: ["work", "book"] }),
+      createTask({ id: "other", tags: ["other"] }),
+    ];
+    const { query } = parseQuery("tag not includes #book");
+    expect(ids(applyBoardQuery(tasks, query))).toEqual(["work", "other"]);
+  });
+
+  it("excludes tasks matching any excluded tag (AND semantic)", () => {
+    const tasks = [
+      createTask({ id: "a", tags: ["book"] }),
+      createTask({ id: "b", tags: ["movie"] }),
+      createTask({ id: "c", tags: ["book", "movie"] }),
+      createTask({ id: "d", tags: ["other"] }),
+    ];
+    const { query } = parseQuery(
+      "tag not includes #book\ntag not includes #movie",
+    );
+    expect(ids(applyBoardQuery(tasks, query))).toEqual(["d"]);
+  });
+
+  it("combines include and exclude tags correctly", () => {
+    const tasks = [
+      createTask({ id: "meeting", tags: ["work", "meeting"] }),
+      createTask({ id: "code", tags: ["work"] }),
+      createTask({ id: "book", tags: ["book"] }),
+      createTask({ id: "other", tags: ["other"] }),
+    ];
+    const { query } = parseQuery(
+      "tag includes #work\ntag not includes #meeting",
+    );
+    expect(ids(applyBoardQuery(tasks, query))).toEqual(["code"]);
+  });
+
+  it("handles only excluded tags with no includes", () => {
+    const tasks = [
+      createTask({ id: "a", tags: ["book"] }),
+      createTask({ id: "b", tags: ["other"] }),
+    ];
+    const { query } = parseQuery("tag not includes #book");
+    expect(ids(applyBoardQuery(tasks, query))).toEqual(["b"]);
+  });
+
+  it("exclude filter is respected alongside description filter", () => {
+    const tasks = [
+      createTask({ id: "a", tags: ["book"], description: "Read a book" }),
+      createTask({ id: "b", tags: ["work"], description: "Read a book" }),
+    ];
+    const { query } = parseQuery(
+      "tag not includes #book\ndescription includes Read",
+    );
+    expect(ids(applyBoardQuery(tasks, query))).toEqual(["b"]);
   });
 });
 

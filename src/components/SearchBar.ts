@@ -3,7 +3,8 @@ import { setIcon } from "obsidian";
 import type { SearchState } from "../utils/searchFilter";
 
 /**
- * The top search bar: a free-text title input and a multi-select tag dropdown.
+ * The top search bar: a free-text title input and a tag dropdown supporting
+ * both include (⊕) and exclude (⊖) per tag.
  *
  * Callback-driven — it owns no task data. On any change it reports the current
  * {@link SearchState} to the `onChange` callback; the board does the filtering.
@@ -19,7 +20,8 @@ export class SearchBar {
   private tagsMenu: HTMLElement;
 
   private availableTags: string[] = [];
-  private selectedTags = new Set<string>();
+  private includedTags = new Set<string>();
+  private excludedTags = new Set<string>();
   private titleQuery = "";
 
   private debounceTimer: number | null = null;
@@ -29,10 +31,12 @@ export class SearchBar {
     container: HTMLElement,
     onChange: (state: SearchState) => void,
     initialSelectedTags: string[] = [],
+    initialExcludedTags: string[] = [],
   ) {
     this.container = container;
     this.onChange = onChange;
-    this.selectedTags = new Set(initialSelectedTags);
+    this.includedTags = new Set(initialSelectedTags);
+    this.excludedTags = new Set(initialExcludedTags);
 
     this.root = this.container.createDiv({ cls: "tasks-kanban-search" });
 
@@ -85,7 +89,7 @@ export class SearchBar {
 
   /**
    * Provide the available tag set (e.g. derived from the current tasks).
-   * Rebuilds the checkbox list, preserving still-valid selections and dropping
+   * Rebuilds the tag list, preserving still-valid selections and dropping
    * any selection whose tag no longer exists.
    */
   setTags(tags: string[]): void {
@@ -93,9 +97,15 @@ export class SearchBar {
 
     // Drop selections that disappeared from the vault.
     let changed = false;
-    for (const tag of Array.from(this.selectedTags)) {
+    for (const tag of Array.from(this.includedTags)) {
       if (!tags.includes(tag)) {
-        this.selectedTags.delete(tag);
+        this.includedTags.delete(tag);
+        changed = true;
+      }
+    }
+    for (const tag of Array.from(this.excludedTags)) {
+      if (!tags.includes(tag)) {
+        this.excludedTags.delete(tag);
         changed = true;
       }
     }
@@ -111,7 +121,8 @@ export class SearchBar {
   getState(): SearchState {
     return {
       titleQuery: this.titleQuery,
-      selectedTags: Array.from(this.selectedTags),
+      selectedTags: Array.from(this.includedTags),
+      excludedTags: Array.from(this.excludedTags),
     };
   }
 
@@ -127,7 +138,8 @@ export class SearchBar {
   setState(state: SearchState): void {
     this.titleQuery = state.titleQuery;
     this.titleInput.value = state.titleQuery;
-    this.selectedTags = new Set(state.selectedTags);
+    this.includedTags = new Set(state.selectedTags);
+    this.excludedTags = new Set(state.excludedTags ?? []);
     this.renderTagsMenu();
     this.updateTagsButtonLabel();
   }
@@ -170,49 +182,100 @@ export class SearchBar {
       return;
     }
 
-    // "Clear" affordance, only meaningful when something is selected.
+    const hasActive = this.includedTags.size > 0 || this.excludedTags.size > 0;
+
+    // "Clear" affordance, only meaningful when something is active.
     const clearRow = this.tagsMenu.createDiv({
       cls: "tasks-kanban-search-tags-clear",
       text: "Clear selection",
     });
+    if (!hasActive) {
+      clearRow.addClass("tasks-kanban-search-tags-clear-disabled");
+    }
     clearRow.addEventListener("click", () => {
-      if (this.selectedTags.size === 0) {
+      if (!hasActive) {
         return;
       }
-      this.selectedTags.clear();
+      this.includedTags.clear();
+      this.excludedTags.clear();
       this.renderTagsMenu();
       this.updateTagsButtonLabel();
       this.emit();
     });
 
     for (const tag of this.availableTags) {
-      const row = this.tagsMenu.createEl("label", {
+      const row = this.tagsMenu.createDiv({
         cls: "tasks-kanban-search-tags-option",
       });
-      const checkbox = row.createEl("input", {
-        attr: { type: "checkbox" },
-      });
-      checkbox.checked = this.selectedTags.has(tag);
-      row.createSpan({ text: tag });
 
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) {
-          this.selectedTags.add(tag);
+      const isIncluded = this.includedTags.has(tag);
+      const isExcluded = this.excludedTags.has(tag);
+
+      // Include button (⊕)
+      const includeBtn = row.createEl("button", {
+        cls: `tasks-kanban-search-tags-btn${isIncluded ? " tasks-kanban-search-tags-btn-include" : ""}`,
+        attr: {
+          type: "button",
+          "aria-label": `Include tag ${tag}`,
+          "aria-pressed": String(isIncluded),
+        },
+        text: "\u2295",
+      });
+      includeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (isIncluded) {
+          this.includedTags.delete(tag);
         } else {
-          this.selectedTags.delete(tag);
+          this.includedTags.add(tag);
+          this.excludedTags.delete(tag);
         }
+        this.renderTagsMenu();
         this.updateTagsButtonLabel();
         this.emit();
+      });
+
+      // Exclude button (⊖)
+      const excludeBtn = row.createEl("button", {
+        cls: `tasks-kanban-search-tags-btn${isExcluded ? " tasks-kanban-search-tags-btn-exclude" : ""}`,
+        attr: {
+          type: "button",
+          "aria-label": `Exclude tag ${tag}`,
+          "aria-pressed": String(isExcluded),
+        },
+        text: "\u2296",
+      });
+      excludeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (isExcluded) {
+          this.excludedTags.delete(tag);
+        } else {
+          this.excludedTags.add(tag);
+          this.includedTags.delete(tag);
+        }
+        this.renderTagsMenu();
+        this.updateTagsButtonLabel();
+        this.emit();
+      });
+
+      row.createSpan({
+        cls: `tasks-kanban-search-tags-label${isExcluded ? " tasks-kanban-search-tags-label-excluded" : ""}`,
+        text: tag,
       });
     }
   }
 
   private updateTagsButtonLabel(): void {
-    const count = this.selectedTags.size;
-    this.tagsButtonLabel.setText(count > 0 ? `Tags (${count})` : "Tags");
-    if (count > 0) {
+    const inc = this.includedTags.size;
+    const exc = this.excludedTags.size;
+    const total = inc + exc;
+    if (total > 0) {
+      const parts: string[] = [];
+      if (inc > 0) parts.push(`+${inc}`);
+      if (exc > 0) parts.push(`-${exc}`);
+      this.tagsButtonLabel.setText(`Tags (${parts.join(" ")})`);
       this.tagsButton.addClass("tasks-kanban-search-tags-button-active");
     } else {
+      this.tagsButtonLabel.setText("Tags");
       this.tagsButton.removeClass("tasks-kanban-search-tags-button-active");
     }
   }

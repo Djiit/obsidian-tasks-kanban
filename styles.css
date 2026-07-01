@@ -99,21 +99,62 @@
 .tasks-kanban-search-tags-option {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 5px 8px;
+    gap: 4px;
+    padding: 4px 8px;
     border-radius: 4px;
     font-size: var(--font-ui-small);
     color: var(--text-normal);
-    cursor: pointer;
 }
 
 .tasks-kanban-search-tags-option:hover {
     background-color: var(--background-modifier-hover);
 }
 
-.tasks-kanban-search-tags-option input {
-    margin: 0;
+/* Include (⊕) and Exclude (⊖) buttons */
+.tasks-kanban-search-tags-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
     cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    user-select: none;
+    color: var(--text-muted);
+    background: transparent;
+    appearance: none;
+    font: inherit;
+    padding: 0;
+}
+
+.tasks-kanban-search-tags-btn:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.tasks-kanban-search-tags-btn-include {
+    border-color: var(--color-green);
+    color: var(--color-green);
+    background-color: color-mix(in srgb, var(--color-green) 15%, transparent);
+}
+
+.tasks-kanban-search-tags-btn-exclude {
+    border-color: var(--color-red);
+    color: var(--color-red);
+    background-color: color-mix(in srgb, var(--color-red) 15%, transparent);
+}
+
+/* Tag label */
+.tasks-kanban-search-tags-label {
+    flex: 1;
+    margin-left: 2px;
+}
+
+.tasks-kanban-search-tags-label-excluded {
+    text-decoration: line-through;
+    opacity: 0.6;
 }
 
 .tasks-kanban-search-tags-clear {
@@ -127,6 +168,15 @@
 
 .tasks-kanban-search-tags-clear:hover {
     color: var(--text-normal);
+}
+
+.tasks-kanban-search-tags-clear-disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.tasks-kanban-search-tags-clear-disabled:hover {
+    color: var(--text-muted);
 }
 
 .tasks-kanban-search-tags-empty {

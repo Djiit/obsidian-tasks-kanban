@@ -12,6 +12,7 @@ import { getUniqueTags } from "../utils/searchFilter";
 import { groupTasks, type TaskGroup } from "../utils/groupTasks";
 import {
   applyBoardQuery,
+  getExcludedTags,
   getGroup,
   getSort,
   getTags,
@@ -19,6 +20,7 @@ import {
   mergeQueries,
   parseQuery,
   serializeQuery,
+  withExcludedTags,
   withGroup,
   withSort,
   withTags,
@@ -82,18 +84,23 @@ export class KanbanBoard {
       header,
       (state) => {
         this.boardQuery = withTitle(
-          withTags(this.boardQuery, state.selectedTags),
+          withTags(
+            withExcludedTags(this.boardQuery, state.excludedTags ?? []),
+            state.selectedTags,
+          ),
           state.titleQuery,
         );
         this.persistState();
         this.applyQuery();
       },
       getTags(this.boardQuery),
+      getExcludedTags(this.boardQuery),
     );
     // Seed the title input from the query (description slice).
     this.searchBar.setState({
       titleQuery: getTitle(this.boardQuery),
       selectedTags: getTags(this.boardQuery),
+      excludedTags: getExcludedTags(this.boardQuery),
     });
     this.sortBar = new SortBar(
       header,
@@ -141,6 +148,7 @@ export class KanbanBoard {
       this.searchBar.setState({
         titleQuery: getTitle(query),
         selectedTags: getTags(query),
+        excludedTags: getExcludedTags(query),
       });
       this.sortBar.setState(getSort(query));
       this.groupBar.setState(getGroup(query));
@@ -234,6 +242,7 @@ export class KanbanBoard {
     this.searchBar.setState({
       titleQuery: getTitle(this.boardQuery),
       selectedTags: getTags(this.boardQuery),
+      excludedTags: getExcludedTags(this.boardQuery),
     });
     this.sortBar.setState(getSort(this.boardQuery));
     this.groupBar.setState(getGroup(this.boardQuery));

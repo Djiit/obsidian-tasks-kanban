@@ -44,10 +44,11 @@ export interface BoardQuery {
 
 /**
  * A single supported filter line. Tag values are stored bare (no leading `#`);
- * description matching is case-insensitive substring.
+ * description matching is case-insensitive substring. Tag filters can be negated
+ * (`tag not includes …`), meaning a task must NOT carry that tag.
  */
 export type FilterInstruction =
-  | { kind: "tag"; value: string }
+  | { kind: "tag"; value: string; negated?: boolean }
   | { kind: "description"; value: string };
 
 /** An empty query: no filters, no sorting, no grouping. */
@@ -103,7 +104,7 @@ const GROUP_FIELD_TO_KEYWORD: Partial<Record<GroupField, string>> = {
 
 /** One-line summary of the supported syntax, used in error messages. */
 const SUPPORTED_SYNTAX =
-  "supported: tag includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
+  "supported: tag includes #<tag>, tag not includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
 
 /**
  * Parse a multi-line query string into a {@link BoardQuery}. One instruction per
@@ -181,6 +182,16 @@ function parseLine(line: string): {
     return { group: { field, direction } };
   }
 
+  // tag not includes <tag> (must be checked before plain "tag includes")
+  const tagNotMatch = /^tag\s+not\s+includes\s+(.+)$/i.exec(line);
+  if (tagNotMatch) {
+    const value = normalizeTag(tagNotMatch[1].trim());
+    if (value === "") {
+      return { error: "empty tag" };
+    }
+    return { filter: { kind: "tag", value, negated: true } };
+  }
+
   // tag includes <tag>
   const tagMatch = /^tag\s+includes\s+(.+)$/i.exec(line);
   if (tagMatch) {
@@ -227,7 +238,9 @@ export function serializeQuery(query: BoardQuery): string {
 function serializeFilter(filter: FilterInstruction): string {
   switch (filter.kind) {
     case "tag":
-      return `tag includes #${filter.value}`;
+      return filter.negated
+        ? `tag not includes #${filter.value}`
+        : `tag includes #${filter.value}`;
     case "description":
       return `description includes ${filter.value}`;
   }
@@ -276,9 +289,10 @@ export function applyBoardQuery(tasks: Task[], query: BoardQuery): Task[] {
 }
 
 /**
- * Apply filter instructions: tag instructions are OR-ed together (a task matches
- * if it carries any selected tag — mirroring the tag bar's multi-select), and the
- * description instruction is AND-ed on top.
+ * Apply filter instructions: positive tag instructions are OR-ed together (a task
+ * matches if it carries any selected tag — mirroring the tag bar's multi-select),
+ * negative (not includes) tags are AND-ed on top (a task must not carry any
+ * excluded tag), and the description instruction is AND-ed on top of all.
  *
  * Note: this OR-within-tags differs from Tasks, where two `tag includes` lines
  * AND. It preserves the existing tag-filter UX; see NOTES.md.
@@ -288,14 +302,24 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
     return [...tasks];
   }
 
-  const tagSet = new Set(
+  const includeTags = new Set(
     filters
       .filter(
         (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
-          f.kind === "tag",
+          f.kind === "tag" && !f.negated,
       )
       .map((f) => f.value),
   );
+
+  const excludeTags = new Set(
+    filters
+      .filter(
+        (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
+          f.kind === "tag" && f.negated === true,
+      )
+      .map((f) => f.value),
+  );
+
   const descriptions = filters
     .filter(
       (f): f is Extract<FilterInstruction, { kind: "description" }> =>
@@ -304,12 +328,23 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
     .map((f) => f.value.toLowerCase());
 
   return tasks.filter((task) => {
-    if (tagSet.size > 0) {
-      const taskTags = (task.tags ?? []).map(normalizeTag);
-      if (!taskTags.some((tag) => tagSet.has(tag))) {
+    const taskTags = (task.tags ?? []).map(normalizeTag);
+
+    // Positive tags (includes): OR'd — task must have at least one.
+    if (includeTags.size > 0) {
+      if (!taskTags.some((tag) => includeTags.has(tag))) {
         return false;
       }
     }
+
+    // Negative tags (not includes): AND'd — task must have none.
+    if (excludeTags.size > 0) {
+      if (taskTags.some((tag) => excludeTags.has(tag))) {
+        return false;
+      }
+    }
+
+    // Description: AND'd — case-insensitive substring match.
     const description = task.description.toLowerCase();
     return descriptions.every((text) => description.includes(text));
   });
@@ -336,22 +371,47 @@ export function withTitle(query: BoardQuery, title: string): BoardQuery {
   return { ...query, filters };
 }
 
-/** Bare tag names currently selected, in query order. */
+/** Bare tag names currently selected as positive (include) filters, in query order. */
 export function getTags(query: BoardQuery): string[] {
   return query.filters
     .filter(
-      (f): f is Extract<FilterInstruction, { kind: "tag" }> => f.kind === "tag",
+      (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
+        f.kind === "tag" && !f.negated,
     )
     .map((f) => f.value);
 }
 
-/** Replace the tag slice; description and sort are preserved. */
+/** Bare tag names currently selected as negative (exclude) filters, in query order. */
+export function getExcludedTags(query: BoardQuery): string[] {
+  return query.filters
+    .filter(
+      (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
+        f.kind === "tag" && f.negated === true,
+    )
+    .map((f) => f.value);
+}
+
+/** Replace the tag include slice; description, sort, and excluded tags are preserved. */
 export function withTags(query: BoardQuery, tags: string[]): BoardQuery {
   const filters: FilterInstruction[] = query.filters.filter(
-    (f) => f.kind !== "tag",
+    (f) => !(f.kind === "tag" && f.negated !== true),
   );
   for (const tag of tags) {
     filters.push({ kind: "tag", value: normalizeTag(tag) });
+  }
+  return { ...query, filters };
+}
+
+/** Replace the tag exclude slice; description, sort, and included tags are preserved. */
+export function withExcludedTags(
+  query: BoardQuery,
+  tags: string[],
+): BoardQuery {
+  const filters: FilterInstruction[] = query.filters.filter(
+    (f) => !(f.kind === "tag" && f.negated),
+  );
+  for (const tag of tags) {
+    filters.push({ kind: "tag", value: normalizeTag(tag), negated: true });
   }
   return { ...query, filters };
 }
