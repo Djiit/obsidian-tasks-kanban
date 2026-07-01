@@ -302,19 +302,23 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
     return [...tasks];
   }
 
-  const includeTags = filters
-    .filter(
-      (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
-        f.kind === "tag" && !f.negated,
-    )
-    .map((f) => f.value);
+  const includeTags = new Set(
+    filters
+      .filter(
+        (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
+          f.kind === "tag" && !f.negated,
+      )
+      .map((f) => f.value),
+  );
 
-  const excludeTags = filters
-    .filter(
-      (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
-        f.kind === "tag" && f.negated === true,
-    )
-    .map((f) => f.value);
+  const excludeTags = new Set(
+    filters
+      .filter(
+        (f): f is Extract<FilterInstruction, { kind: "tag" }> =>
+          f.kind === "tag" && f.negated === true,
+      )
+      .map((f) => f.value),
+  );
 
   const descriptions = filters
     .filter(
@@ -327,15 +331,15 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
     const taskTags = (task.tags ?? []).map(normalizeTag);
 
     // Positive tags (includes): OR'd — task must have at least one.
-    if (includeTags.length > 0) {
-      if (!taskTags.some((tag) => includeTags.includes(tag))) {
+    if (includeTags.size > 0) {
+      if (!taskTags.some((tag) => includeTags.has(tag))) {
         return false;
       }
     }
 
     // Negative tags (not includes): AND'd — task must have none.
-    if (excludeTags.length > 0) {
-      if (taskTags.some((tag) => excludeTags.includes(tag))) {
+    if (excludeTags.size > 0) {
+      if (taskTags.some((tag) => excludeTags.has(tag))) {
         return false;
       }
     }

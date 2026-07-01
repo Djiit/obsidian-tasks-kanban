@@ -212,8 +212,13 @@ export class SearchBar {
       const isExcluded = this.excludedTags.has(tag);
 
       // Include button (⊕)
-      const includeBtn = row.createSpan({
+      const includeBtn = row.createEl("button", {
         cls: `tasks-kanban-search-tags-btn${isIncluded ? " tasks-kanban-search-tags-btn-include" : ""}`,
+        attr: {
+          type: "button",
+          "aria-label": `Include tag ${tag}`,
+          "aria-pressed": String(isIncluded),
+        },
         text: "\u2295",
       });
       includeBtn.addEventListener("click", (e) => {
@@ -230,8 +235,13 @@ export class SearchBar {
       });
 
       // Exclude button (⊖)
-      const excludeBtn = row.createSpan({
+      const excludeBtn = row.createEl("button", {
         cls: `tasks-kanban-search-tags-btn${isExcluded ? " tasks-kanban-search-tags-btn-exclude" : ""}`,
+        attr: {
+          type: "button",
+          "aria-label": `Exclude tag ${tag}`,
+          "aria-pressed": String(isExcluded),
+        },
         text: "\u2296",
       });
       excludeBtn.addEventListener("click", (e) => {
