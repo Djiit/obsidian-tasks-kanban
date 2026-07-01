@@ -5,7 +5,11 @@ export class ItemView {}
 export class WorkspaceLeaf {}
 export class Notice {}
 export class App {
-  vault = { read: async () => "", write: async () => {}, getAbstractFileByPath: () => null };
+  vault = {
+    read: async () => "",
+    write: async () => {},
+    getAbstractFileByPath: () => null,
+  };
   workspace = { getLeaf: () => ({ openFile: async () => {} }) };
   metadataCache = {};
 }
