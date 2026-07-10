@@ -101,6 +101,122 @@ describe("parseQuery", () => {
     expect(parseQuery("sort by created").query.sort.field).toBe("createdDate");
   });
 
+  describe("date filters", () => {
+    it('parses "starts before tomorrow"', () => {
+      const { query, errors } = parseQuery("starts before tomorrow");
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "date",
+        field: "startDate",
+        operator: "before",
+        value: "tomorrow",
+      });
+    });
+
+    it('parses "due after 2026-07-10"', () => {
+      const { query, errors } = parseQuery("due after 2026-07-10");
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "date",
+        field: "dueDate",
+        operator: "after",
+        value: "2026-07-10",
+      });
+    });
+
+    it('parses "starts today"', () => {
+      const { query, errors } = parseQuery("starts today");
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "date",
+        field: "startDate",
+        operator: "on",
+        value: "today",
+      });
+    });
+
+    it('parses "has start date"', () => {
+      const { query, errors } = parseQuery("has start date");
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "date",
+        field: "startDate",
+        operator: "has",
+        value: "date",
+      });
+    });
+
+    it('parses "no start date"', () => {
+      const { query, errors } = parseQuery("no start date");
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "date",
+        field: "startDate",
+        operator: "no",
+        value: "date",
+      });
+    });
+
+    it('parses "starts in this week"', () => {
+      const { query, errors } = parseQuery("starts in this week");
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "date",
+        field: "startDate",
+        operator: "in",
+        value: "this week",
+      });
+    });
+
+    it("parses date filters for all date fields", () => {
+      const fields = [
+        "due",
+        "scheduled",
+        "start",
+        "created",
+        "done",
+        "cancelled",
+      ];
+      for (const field of fields) {
+        const { query, errors } = parseQuery(`${field} after 2026-01-01`);
+        expect(errors).toEqual([]);
+        expect(query.filters).toHaveLength(1);
+        expect(query.filters[0].kind).toBe("date");
+        expect(query.filters[0].operator).toBe("after");
+        expect(query.filters[0].value).toBe("2026-01-01");
+      }
+    });
+
+    it("parses all date operators", () => {
+      const operators = ["before", "after", "on", "in", "has", "no"];
+      for (const op of operators) {
+        const { query, errors } = parseQuery(`starts ${op} test`);
+        expect(errors).toEqual([]);
+        expect(query.filters).toHaveLength(1);
+        expect(query.filters[0].kind).toBe("date");
+        expect(query.filters[0].operator).toBe(op);
+      }
+    });
+
+    it("flags invalid date field as error", () => {
+      const { query, errors } = parseQuery("invalid after 2026-01-01");
+      expect(query.filters).toEqual([]);
+      expect(errors).toHaveLength(1);
+    });
+
+    it("flags invalid date operator as error", () => {
+      const { query, errors } = parseQuery("starts invalid 2026-01-01");
+      expect(query.filters).toEqual([]);
+      expect(errors).toHaveLength(1);
+    });
+  });
+
   describe("tolerant errors on unsupported lines", () => {
     it("flags a bare # tag (no shorthand) and skips it", () => {
       const { query, errors } = parseQuery("#work");
@@ -115,7 +231,6 @@ describe("parseQuery", () => {
         "path includes Projects",
         "priority is high",
         "done",
-        "due before 2026-01-01",
         "status.type is TODO",
       ]) {
         const { query, errors } = parseQuery(line);
@@ -176,6 +291,20 @@ describe("serializeQuery / round-trip", () => {
     );
   });
 
+  it("serializes date filters", () => {
+    const { query } = parseQuery("starts before tomorrow");
+    expect(serializeQuery(query)).toBe("starts before tomorrow");
+  });
+
+  it("serializes mixed filters including date filters", () => {
+    const { query } = parseQuery(
+      "tag includes #work\nstarts before tomorrow\nsort by due",
+    );
+    expect(serializeQuery(query)).toBe(
+      "tag includes #work\nstarts before tomorrow\nsort by due",
+    );
+  });
+
   it("omits the sort line when there is no sorting", () => {
     const { query } = parseQuery("tag includes #work");
     expect(serializeQuery(query)).toBe("tag includes #work");
@@ -192,6 +321,13 @@ describe("serializeQuery / round-trip", () => {
   it("round-trips a query with mixed include/exclude tags", () => {
     const source =
       "tag includes #work\ntag not includes #book\ntag not includes #movie\ndescription includes read\nsort by due reverse";
+    const first = parseQuery(source).query;
+    const second = parseQuery(serializeQuery(first)).query;
+    expect(second).toEqual(first);
+  });
+
+  it("round-trips a query with date filters", () => {
+    const source = "starts before tomorrow\ndue after 2026-07-10";
     const first = parseQuery(source).query;
     const second = parseQuery(serializeQuery(first)).query;
     expect(second).toEqual(first);
@@ -399,6 +535,128 @@ describe("applyBoardQuery", () => {
     );
     expect(ids(applyBoardQuery(tasks, query))).toEqual(["b"]);
   });
+
+  describe("date filters", () => {
+    it("filters tasks by start date before tomorrow", () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const tasks = [
+        createTask({ id: "past", startDate: "2026-01-01" }),
+        createTask({ id: "today", startDate: toLocalISODate(today) }),
+        createTask({ id: "future", startDate: "2026-12-31" }),
+        createTask({ id: "none", startDate: null }),
+      ];
+
+      const { query } = parseQuery("starts before tomorrow");
+      const result = applyBoardQuery(tasks, query);
+
+      // Should include past and today, exclude future and none
+      expect(result).toContainEqual(tasks[0]);
+      expect(result).toContainEqual(tasks[1]);
+      expect(result).not.toContainEqual(tasks[2]);
+      expect(result).not.toContainEqual(tasks[3]);
+    });
+
+    it("filters tasks by due date after a specific date", () => {
+      const tasks = [
+        createTask({ id: "past", dueDate: "2026-01-01" }),
+        createTask({ id: "future", dueDate: "2026-07-15" }),
+        createTask({ id: "none", dueDate: null }),
+      ];
+
+      const { query } = parseQuery("due after 2026-07-10");
+      const result = applyBoardQuery(tasks, query);
+
+      expect(result).not.toContainEqual(tasks[0]);
+      expect(result).toContainEqual(tasks[1]);
+      expect(result).not.toContainEqual(tasks[2]);
+    });
+
+    it("filters tasks with has start date", () => {
+      const tasks = [
+        createTask({ id: "hasStart", startDate: "2026-01-01" }),
+        createTask({ id: "noStart", startDate: null }),
+        createTask({ id: "emptyStart", startDate: "" }),
+      ];
+
+      const { query } = parseQuery("has start date");
+      const result = applyBoardQuery(tasks, query);
+
+      expect(result).toContainEqual(tasks[0]);
+      expect(result).not.toContainEqual(tasks[1]);
+      expect(result).not.toContainEqual(tasks[2]);
+    });
+
+    it("filters tasks with no start date", () => {
+      const tasks = [
+        createTask({ id: "hasStart", startDate: "2026-01-01" }),
+        createTask({ id: "noStart", startDate: null }),
+        createTask({ id: "emptyStart", startDate: "" }),
+      ];
+
+      const { query } = parseQuery("no start date");
+      const result = applyBoardQuery(tasks, query);
+
+      expect(result).not.toContainEqual(tasks[0]);
+      expect(result).toContainEqual(tasks[1]);
+      expect(result).toContainEqual(tasks[2]);
+    });
+
+    it("combines date filters with tag filters", () => {
+      const tasks = [
+        createTask({ id: "match", tags: ["work"], startDate: "2026-01-01" }),
+        createTask({ id: "wrongTag", tags: ["home"], startDate: "2026-01-01" }),
+        createTask({
+          id: "wrongDate",
+          tags: ["work"],
+          startDate: "2026-12-31",
+        }),
+        createTask({ id: "noMatch", tags: ["home"], startDate: "2026-12-31" }),
+      ];
+
+      const { query } = parseQuery(
+        "tag includes #work\nstarts before 2026-07-01",
+      );
+      const result = applyBoardQuery(tasks, query);
+
+      expect(result).toContainEqual(tasks[0]);
+      expect(result).not.toContainEqual(tasks[1]);
+      expect(result).not.toContainEqual(tasks[2]);
+      expect(result).not.toContainEqual(tasks[3]);
+    });
+
+    it("combines multiple date filters", () => {
+      const tasks = [
+        createTask({
+          id: "match",
+          dueDate: "2026-07-15",
+          startDate: "2026-07-10",
+        }),
+        createTask({
+          id: "wrongDue",
+          dueDate: "2026-01-01",
+          startDate: "2026-07-10",
+        }),
+        createTask({
+          id: "wrongStart",
+          dueDate: "2026-07-15",
+          startDate: "2026-01-01",
+        }),
+      ];
+
+      const { query } = parseQuery(
+        "due after 2026-07-10\nstarts after 2026-07-05",
+      );
+      const result = applyBoardQuery(tasks, query);
+
+      expect(result).toContainEqual(tasks[0]);
+      expect(result).not.toContainEqual(tasks[1]);
+      expect(result).not.toContainEqual(tasks[2]);
+    });
+  });
 });
 
 describe("isDefaultSort", () => {
@@ -534,3 +792,11 @@ describe("getGroup / withGroup", () => {
     expect(next.sort).toEqual(query.sort);
   });
 });
+
+// Helper function for date tests
+function toLocalISODate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
