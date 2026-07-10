@@ -50,7 +50,7 @@
     "nano-staged": "^1.0.2",
     "prettier": "^3.8.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "obsidian": "^1.13.1"
