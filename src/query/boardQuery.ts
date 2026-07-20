@@ -399,7 +399,7 @@ export function withTitle(query: BoardQuery, title: string): BoardQuery {
   const filters: FilterInstruction[] = query.filters.filter(
     (f) => f.kind !== "description",
   );
-  const trimmed = title.trim();
+  const trimmed = String(title).trim();
   if (trimmed !== "") {
     filters.push({ kind: "description", value: trimmed });
   }

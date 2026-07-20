@@ -225,8 +225,30 @@ export function matchesDateFilter(
  * Normalize a date string to YYYY-MM-DD format.
  * Handles various formats including ISO strings with time components.
  */
-function normalizeDateString(value: string): string | null {
-  if (!value) {
+function normalizeDateString(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  // Handle Date objects by converting to ISO string first
+  if (value instanceof Date) {
+    // Convert Date to ISO string, then extract just the date part
+    const iso = value.toISOString();
+    return iso.slice(0, 10);
+  }
+
+  if (typeof value !== "string") {
+    // For Moment-like objects, try toISOString first
+    if (
+      typeof value === "object" &&
+      value &&
+      typeof (value as { toISOString?: () => string }).toISOString ===
+        "function"
+    ) {
+      return (value as { toISOString: () => string })
+        .toISOString()
+        .slice(0, 10);
+    }
     return null;
   }
 
