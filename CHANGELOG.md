@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.9.0...0.10.0) (2026-07-20)
+
+
+### Features
+
+* add date-based filtering support ([70e8716](https://github.com/Djiit/obsidian-tasks-kanban/commit/70e871687b4dc2999a4a2bccf4824fbaf9490201))
+* add date-based filtering support ([5429945](https://github.com/Djiit/obsidian-tasks-kanban/commit/5429945ac55d112404ee655b44419d76511619c5)), closes [#32](https://github.com/Djiit/obsidian-tasks-kanban/issues/32)
+
+
+### Bug Fixes
+
+* add more tests ([c8ace57](https://github.com/Djiit/obsidian-tasks-kanban/commit/c8ace57fbbec23b197823b59e52eeff34b2a57b8))
+* bump node to 26 ([7a18659](https://github.com/Djiit/obsidian-tasks-kanban/commit/7a18659518b9c60b4739d38a0a0510ab5680dc55))
+* fix filter saving ([6257d63](https://github.com/Djiit/obsidian-tasks-kanban/commit/6257d636ca0816e953b113b5e1a3d6943908d732))
+
 ## [0.9.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.8.2...0.9.0) (2026-07-01)
 
 
