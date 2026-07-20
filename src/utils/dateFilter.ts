@@ -233,8 +233,12 @@ function normalizeDateString(value: unknown): string | null {
   // Handle Date objects by converting to ISO string first
   if (value instanceof Date) {
     // Convert Date to ISO string, then extract just the date part
-    const iso = value.toISOString();
-    return iso.slice(0, 10);
+    try {
+      const iso = value.toISOString();
+      return iso.slice(0, 10);
+    } catch {
+      return null;
+    }
   }
 
   if (typeof value !== "string") {
@@ -245,9 +249,12 @@ function normalizeDateString(value: unknown): string | null {
       typeof (value as { toISOString?: () => string }).toISOString ===
         "function"
     ) {
-      return (value as { toISOString: () => string })
-        .toISOString()
-        .slice(0, 10);
+      try {
+        const iso = (value as { toISOString: () => string }).toISOString();
+        return typeof iso === "string" ? iso.slice(0, 10) : null;
+      } catch {
+        return null;
+      }
     }
     return null;
   }

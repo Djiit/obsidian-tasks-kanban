@@ -127,6 +127,65 @@ describe("parseDateFilter", () => {
     expect(filter2).not.toBeNull();
     expect(filter2?.field).toBe("dueDate");
   });
+
+  it("parses all date field singular and plural forms", () => {
+    const fields = [
+      "due",
+      "dues",
+      "scheduled",
+      "scheduleds",
+      "start",
+      "starts",
+      "created",
+      "createds",
+      "done",
+      "dones",
+      "cancelled",
+      "cancelleds",
+    ];
+    for (const field of fields) {
+      const filter = parseDateFilter(`${field} before tomorrow`);
+      expect(filter).not.toBeNull();
+      expect(filter?.kind).toBe("date");
+      expect(filter?.operator).toBe("before");
+      expect(filter?.value).toBe("tomorrow");
+    }
+  });
+
+  it("parses all operators with date values", () => {
+    const operators = ["before", "after", "on", "in"];
+    for (const op of operators) {
+      const filter = parseDateFilter(`due ${op} 2026-07-10`);
+      expect(filter).not.toBeNull();
+      expect(filter?.operator).toBe(op);
+      expect(filter?.value).toBe("2026-07-10");
+    }
+  });
+
+  it("parses implicit 'on' for yesterday", () => {
+    const filter = parseDateFilter("starts yesterday");
+    expect(filter).not.toBeNull();
+    expect(filter?.operator).toBe("on");
+    expect(filter?.value).toBe("yesterday");
+  });
+
+  it("parses all relative periods with implicit 'in' operator", () => {
+    const periods = [
+      "this week",
+      "next week",
+      "last week",
+      "this month",
+      "next month",
+      "last month",
+      "this year",
+    ];
+    for (const period of periods) {
+      const filter = parseDateFilter(`starts ${period}`);
+      expect(filter).not.toBeNull();
+      expect(filter?.operator).toBe("in");
+      expect(filter?.value).toBe(period);
+    }
+  });
 });
 
 describe("matchesDateFilter", () => {
@@ -212,6 +271,80 @@ describe("matchesDateFilter", () => {
     expect(matchesDateFilter(outOfWeekTask, filter!, referenceDate)).toBe(
       false,
     );
+  });
+
+  it("matches tasks due before tomorrow", () => {
+    const filter = parseDateFilter("due before tomorrow");
+    expect(filter).not.toBeNull();
+
+    const todayTask = createTask({ dueDate: "2026-07-10" });
+    const pastTask = createTask({ dueDate: "2026-07-09" });
+    const futureTask = createTask({ dueDate: "2026-07-11" });
+    const noDateTask = createTask({ dueDate: null });
+
+    expect(matchesDateFilter(todayTask, filter!, referenceDate)).toBe(true);
+    expect(matchesDateFilter(pastTask, filter!, referenceDate)).toBe(true);
+    expect(matchesDateFilter(futureTask, filter!, referenceDate)).toBe(false);
+    expect(matchesDateFilter(noDateTask, filter!, referenceDate)).toBe(false);
+  });
+
+  it("matches tasks scheduled after a specific date", () => {
+    const filter = parseDateFilter("scheduled after 2026-01-01");
+    expect(filter).not.toBeNull();
+
+    const beforeTask = createTask({ scheduledDate: "2025-12-31" });
+    const onTask = createTask({ scheduledDate: "2026-01-01" });
+    const afterTask = createTask({ scheduledDate: "2026-01-02" });
+
+    expect(matchesDateFilter(beforeTask, filter!, referenceDate)).toBe(false);
+    expect(matchesDateFilter(onTask, filter!, referenceDate)).toBe(false);
+    expect(matchesDateFilter(afterTask, filter!, referenceDate)).toBe(true);
+  });
+
+  it("matches tasks created in this month", () => {
+    const filter = parseDateFilter("created in this month");
+    expect(filter).not.toBeNull();
+
+    const inMonthTask = createTask({ createdDate: "2026-07-01" });
+    const outOfMonthTask = createTask({ createdDate: "2026-06-30" });
+
+    expect(matchesDateFilter(inMonthTask, filter!, referenceDate)).toBe(true);
+    expect(matchesDateFilter(outOfMonthTask, filter!, referenceDate)).toBe(
+      false,
+    );
+  });
+
+  it("matches tasks with no due date", () => {
+    const filter = parseDateFilter("no due date");
+    expect(filter).not.toBeNull();
+
+    const hasDueTask = createTask({ dueDate: "2026-07-10" });
+    const nullDueTask = createTask({ dueDate: null });
+    const emptyDueTask = createTask({ dueDate: "" });
+
+    expect(matchesDateFilter(hasDueTask, filter!, referenceDate)).toBe(false);
+    expect(matchesDateFilter(nullDueTask, filter!, referenceDate)).toBe(true);
+    expect(matchesDateFilter(emptyDueTask, filter!, referenceDate)).toBe(true);
+  });
+
+  it("matches tasks with start date on yesterday", () => {
+    const filter = parseDateFilter("starts yesterday");
+    expect(filter).not.toBeNull();
+
+    // yesterday relative to 2026-07-10 is 2026-07-09
+    const yesterdayTask = createTask({ startDate: "2026-07-09" });
+    const todayTask = createTask({ startDate: "2026-07-10" });
+
+    expect(matchesDateFilter(yesterdayTask, filter!, referenceDate)).toBe(true);
+    expect(matchesDateFilter(todayTask, filter!, referenceDate)).toBe(false);
+  });
+
+  it("handles plural date field forms", () => {
+    const filter = parseDateFilter("starts before tomorrow");
+    expect(filter).not.toBeNull();
+
+    const pastTask = createTask({ startDate: "2026-07-01" });
+    expect(matchesDateFilter(pastTask, filter!, referenceDate)).toBe(true);
   });
 });
 
