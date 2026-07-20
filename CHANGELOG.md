@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.0...0.10.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* add done/cancelled date when dragging tasks to DONE/CANCELLED columns ([d757d18](https://github.com/Djiit/obsidian-tasks-kanban/commit/d757d18e447eac69f1e2928d87347a60f3f4b7d5))
+* add done/cancelled date when dragging tasks to DONE/CANCELLED columns ([8432e88](https://github.com/Djiit/obsidian-tasks-kanban/commit/8432e88dd2d0de35653fb59ce0a0cf0bae9e45a8))
+
 ## [0.10.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.9.0...0.10.0) (2026-07-20)
 
 
