@@ -12,6 +12,12 @@ import {
   type GroupField,
   type GroupState,
 } from "../utils/groupTasks";
+import {
+  parseDateFilter,
+  matchesDateFilter,
+  serializeDateFilter,
+  type DateFilterInstruction,
+} from "../utils/dateFilter";
 
 /**
  * The canonical, line-based query that drives a board's filtering and sorting.
@@ -24,7 +30,9 @@ import {
  * — only the instructions the bars themselves produce:
  *
  *   tag includes #<tag>
+ *   tag not includes #<tag>
  *   description includes <text>
+ *   <date-field> <operator> <value>  (e.g., starts before tomorrow, due after 2026-07-10)
  *   sort by <due|scheduled|start|created|priority> [reverse]
  *   group by <status|priority|due|…|tags|folder|filename> [reverse]
  *
@@ -46,10 +54,12 @@ export interface BoardQuery {
  * A single supported filter line. Tag values are stored bare (no leading `#`);
  * description matching is case-insensitive substring. Tag filters can be negated
  * (`tag not includes …`), meaning a task must NOT carry that tag.
+ * Date filters support operators like before, after, on, in, has, no.
  */
 export type FilterInstruction =
   | { kind: "tag"; value: string; negated?: boolean }
-  | { kind: "description"; value: string };
+  | { kind: "description"; value: string }
+  | DateFilterInstruction;
 
 /** An empty query: no filters, no sorting, no grouping. */
 export const EMPTY_QUERY: BoardQuery = {
@@ -104,7 +114,7 @@ const GROUP_FIELD_TO_KEYWORD: Partial<Record<GroupField, string>> = {
 
 /** One-line summary of the supported syntax, used in error messages. */
 const SUPPORTED_SYNTAX =
-  "supported: tag includes #<tag>, tag not includes #<tag>, description includes <text>, sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
+  "supported: tag includes #<tag>, tag not includes #<tag>, description includes <text>, <date-field> <operator> <value> (e.g., starts before tomorrow), sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
 
 /**
  * Parse a multi-line query string into a {@link BoardQuery}. One instruction per
@@ -182,6 +192,12 @@ function parseLine(line: string): {
     return { group: { field, direction } };
   }
 
+  // Try to parse as a date filter first (before tag filters)
+  const dateFilter = parseDateFilter(line);
+  if (dateFilter) {
+    return { filter: dateFilter };
+  }
+
   // tag not includes <tag> (must be checked before plain "tag includes")
   const tagNotMatch = /^tag\s+not\s+includes\s+(.+)$/i.exec(line);
   if (tagNotMatch) {
@@ -243,6 +259,8 @@ function serializeFilter(filter: FilterInstruction): string {
         : `tag includes #${filter.value}`;
     case "description":
       return `description includes ${filter.value}`;
+    case "date":
+      return serializeDateFilter(filter);
   }
 }
 
@@ -293,6 +311,7 @@ export function applyBoardQuery(tasks: Task[], query: BoardQuery): Task[] {
  * matches if it carries any selected tag — mirroring the tag bar's multi-select),
  * negative (not includes) tags are AND-ed on top (a task must not carry any
  * excluded tag), and the description instruction is AND-ed on top of all.
+ * Date filters are AND-ed with all other filters.
  *
  * Note: this OR-within-tags differs from Tasks, where two `tag includes` lines
  * AND. It preserves the existing tag-filter UX; see NOTES.md.
@@ -327,6 +346,10 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
     )
     .map((f) => f.value.toLowerCase());
 
+  const dateFilters = filters.filter(
+    (f): f is DateFilterInstruction => f.kind === "date",
+  );
+
   return tasks.filter((task) => {
     const taskTags = (task.tags ?? []).map(normalizeTag);
 
@@ -346,7 +369,19 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
 
     // Description: AND'd — case-insensitive substring match.
     const description = task.description.toLowerCase();
-    return descriptions.every((text) => description.includes(text));
+    if (!descriptions.every((text) => description.includes(text))) {
+      return false;
+    }
+
+    // Date filters: AND'd — all must match
+    const now = new Date();
+    for (const dateFilter of dateFilters) {
+      if (!matchesDateFilter(task, dateFilter, now)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 }
 
@@ -364,7 +399,7 @@ export function withTitle(query: BoardQuery, title: string): BoardQuery {
   const filters: FilterInstruction[] = query.filters.filter(
     (f) => f.kind !== "description",
   );
-  const trimmed = title.trim();
+  const trimmed = String(title).trim();
   if (trimmed !== "") {
     filters.push({ kind: "description", value: trimmed });
   }

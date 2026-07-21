@@ -93,7 +93,7 @@ export class TasksIntegration {
 
   constructor(app: App) {
     this.app = app;
-    this.taskUpdater = new TaskUpdater(app);
+    this.taskUpdater = new TaskUpdater(app, this);
     this.setupEventListeners();
   }
 
@@ -240,6 +240,54 @@ export class TasksIntegration {
    */
   getStatusBySymbol(symbol: string): StatusInfo | undefined {
     return this.getStatuses().find((s) => s.symbol === symbol);
+  }
+
+  /**
+   * Get the Tasks plugin's date settings (setDoneDate, setCancelledDate)
+   * Reads from in-memory settings first, then falls back to persisted data.json
+   */
+  async getDateSettings(): Promise<{
+    setDoneDate: boolean;
+    setCancelledDate: boolean;
+  }> {
+    // Try in-memory settings first
+    const plugin = this.app.plugins.getPlugin("obsidian-tasks-plugin") as {
+      settings?: { setDoneDate?: boolean; setCancelledDate?: boolean };
+    } | null;
+
+    if (plugin?.settings) {
+      return {
+        setDoneDate: plugin.settings.setDoneDate ?? false,
+        setCancelledDate: plugin.settings.setCancelledDate ?? false,
+      };
+    }
+
+    // Fall back to persisted settings
+    return this.readDateSettingsFromFile();
+  }
+
+  /**
+   * Read date settings from the Tasks plugin's persisted data.json
+   */
+  private async readDateSettingsFromFile(): Promise<{
+    setDoneDate: boolean;
+    setCancelledDate: boolean;
+  }> {
+    try {
+      const path = `${this.app.vault.configDir}/plugins/obsidian-tasks-plugin/data.json`;
+      const raw = await this.app.vault.adapter.read(path);
+      const parsed = JSON.parse(raw) as {
+        setDoneDate?: boolean;
+        setCancelledDate?: boolean;
+      };
+      return {
+        setDoneDate: parsed.setDoneDate ?? false,
+        setCancelledDate: parsed.setCancelledDate ?? false,
+      };
+    } catch {
+      // If we can't read the file, default to false (no dates)
+      return { setDoneDate: false, setCancelledDate: false };
+    }
   }
 
   /**

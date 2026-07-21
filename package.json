@@ -1,6 +1,6 @@
 {
   "name": "obsidian-tasks-kanban",
-  "version": "0.9.0",
+  "version": "0.10.1",
   "description": "Kanban board view for Obsidian Tasks",
   "main": "main.js",
   "scripts": {
@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postbuild": "mkdir -p test-vault/.obsidian/plugins/tasks-kanban && ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban/main.js",
+    "symlink": "ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban/main.js"
   },
   "keywords": [
     "obsidian",
