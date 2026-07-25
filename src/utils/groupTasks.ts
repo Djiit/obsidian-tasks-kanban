@@ -67,6 +67,12 @@ const PRIORITY_LABELS: Record<number, string> = {
   5: "Lowest",
 };
 
+/**
+ * Rank order for priority lanes (highest priority first), matching Tasks'
+ * own priority scale rather than alphabetical order of the labels above.
+ */
+const PRIORITY_LABEL_ORDER = Object.values(PRIORITY_LABELS);
+
 /** The path's parent folder, always ending in `/` (root → `/`). */
 function folderOf(path: string): string {
   const slash = path.lastIndexOf("/");
@@ -112,9 +118,11 @@ function labelsFor(task: Task, field: GroupField): string[] {
  *
  * - `field === 'none'`: a single unlabeled lane in the original order.
  * - Tasks missing the value collect under a `None` lane, always shown last.
- * - Lanes are ordered by label; `direction: 'desc'` reverses that order (the
- *   `None` lane stays last either way). Within a lane, the incoming task order
- *   (i.e. the applied sort) is preserved.
+ * - Lanes are ordered by label, except `priority`, which is ordered by its
+ *   numeric rank (Highest → Lowest) rather than alphabetically. `direction:
+ *   'desc'` reverses that order (the missing-value `None` lane stays last
+ *   either way). Within a lane, the incoming task order (i.e. the applied
+ *   sort) is preserved.
  */
 export function groupTasks(tasks: Task[], state: GroupState): TaskGroup[] {
   if (state.field === "none") {
@@ -143,9 +151,15 @@ export function groupTasks(tasks: Task[], state: GroupState): TaskGroup[] {
     }
   }
 
-  const ordered = [...groups.values()].sort((a, b) =>
-    a.label.localeCompare(b.label, undefined, { numeric: true }),
-  );
+  const ordered = [...groups.values()].sort((a, b) => {
+    if (state.field === "priority") {
+      return (
+        PRIORITY_LABEL_ORDER.indexOf(a.label) -
+        PRIORITY_LABEL_ORDER.indexOf(b.label)
+      );
+    }
+    return a.label.localeCompare(b.label, undefined, { numeric: true });
+  });
   if (state.direction === "desc") {
     ordered.reverse();
   }

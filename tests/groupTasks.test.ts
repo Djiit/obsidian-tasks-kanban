@@ -43,14 +43,16 @@ describe("groupTasks none", () => {
 });
 
 describe("groupTasks by priority", () => {
-  it("splits into lanes by priority label, ordered alphabetically", () => {
+  it("splits into lanes by priority label, ordered by rank (Highest to Lowest)", () => {
     const tasks = [
-      createTask({ id: "hi", priority: 1 }), // High
       createTask({ id: "lo", priority: 4 }), // Low
+      createTask({ id: "hi", priority: 1 }), // High
+      createTask({ id: "med", priority: 2 }), // Medium
     ];
-    // High, Low — alphabetical
+    // Rank order, not alphabetical (which would be High, Low, Medium)
     expect(labels(tasks, state({ field: "priority" }))).toEqual([
       "High",
+      "Medium",
       "Low",
     ]);
   });
@@ -63,6 +65,20 @@ describe("groupTasks by priority", () => {
     expect(
       labels(tasks, state({ field: "priority", direction: "desc" })),
     ).toEqual(["Low", "High"]);
+  });
+
+  it("places every priority level in Highest to Lowest rank order", () => {
+    const tasks = [5, 3, 0, 4, 1, 2].map((priority, i) =>
+      createTask({ id: `t${i}`, priority }),
+    );
+    expect(labels(tasks, state({ field: "priority" }))).toEqual([
+      "Highest",
+      "High",
+      "Medium",
+      "None",
+      "Low",
+      "Lowest",
+    ]);
   });
 });
 
