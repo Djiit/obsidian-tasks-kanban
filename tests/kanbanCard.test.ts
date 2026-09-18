@@ -25,6 +25,7 @@ function mockIntegration(file: unknown) {
   const getLeaf = vi.fn().mockReturnValue({ openFile });
   const getFileByPath = vi.fn().mockReturnValue(file);
   const integration = {
+    getTasks: vi.fn().mockReturnValue([]),
     app: {
       vault: { getFileByPath },
       workspace: { getLeaf },
