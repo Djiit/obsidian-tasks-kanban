@@ -61,6 +61,16 @@ const PRIORITY_LABELS: Record<number, string> = {
   5: "Lowest",
 };
 
+/** Semantic lane order for Tasks priorities; None always remains last. */
+const PRIORITY_RANK: Readonly<Record<string, number>> = {
+  Highest: 0,
+  High: 1,
+  Medium: 2,
+  Low: 3,
+  Lowest: 4,
+  None: Number.POSITIVE_INFINITY,
+};
+
 /** The path's parent folder, always ending in `/` (root → `/`). */
 function folderOf(path: string): string {
   const slash = path.lastIndexOf("/");
@@ -106,9 +116,10 @@ function labelsFor(task: Task, field: GroupField): string[] {
  *
  * - `field === 'none'`: a single unlabeled lane in the original order.
  * - Tasks missing the value collect under a `None` lane, always shown last.
- * - Lanes are ordered by label; `direction: 'desc'` reverses that order (the
- *   `None` lane stays last either way). Within a lane, the incoming task order
- *   (i.e. the applied sort) is preserved.
+ * - Priority lanes use semantic priority order; all other lanes are ordered by
+ *   label. `direction: 'desc'` reverses that order, while the `None` lane stays
+ *   last either way. Within a lane, the incoming task order (i.e. the applied
+ *   sort) is preserved.
  */
 export function groupTasks(tasks: Task[], state: GroupState): TaskGroup[] {
   if (state.field === "none") {
@@ -137,12 +148,22 @@ export function groupTasks(tasks: Task[], state: GroupState): TaskGroup[] {
     }
   }
 
-  const ordered = [...groups.values()].sort((a, b) =>
-    a.label.localeCompare(b.label, undefined, { numeric: true }),
-  );
-  if (state.direction === "desc") {
-    ordered.reverse();
-  }
+  const direction = state.direction === "desc" ? -1 : 1;
+  const ordered = [...groups.values()].sort((a, b) => {
+    if (state.field === "priority") {
+      const aRank = PRIORITY_RANK[a.label];
+      const bRank = PRIORITY_RANK[b.label];
+      const aValid = Number.isFinite(aRank);
+      const bValid = Number.isFinite(bRank);
+      if (!aValid && !bValid) return 0;
+      if (!aValid) return 1;
+      if (!bValid) return -1;
+      return (aRank - bRank) * direction;
+    }
+    return (
+      a.label.localeCompare(b.label, undefined, { numeric: true }) * direction
+    );
+  });
   if (none) {
     ordered.push(none);
   }
