@@ -153,8 +153,11 @@ export function groupTasks(tasks: Task[], state: GroupState): TaskGroup[] {
     if (state.field === "priority") {
       const aRank = PRIORITY_RANK[a.label];
       const bRank = PRIORITY_RANK[b.label];
-      if (!Number.isFinite(aRank)) return 1;
-      if (!Number.isFinite(bRank)) return -1;
+      const aValid = Number.isFinite(aRank);
+      const bValid = Number.isFinite(bRank);
+      if (!aValid && !bValid) return 0;
+      if (!aValid) return 1;
+      if (!bValid) return -1;
       return (aRank - bRank) * direction;
     }
     return (
