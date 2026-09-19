@@ -179,16 +179,19 @@ export class KanbanCard {
   }
 
   /**
-   * Open the source file where this task is located
+   * Open the source file where this task is located, scrolling to and
+   * placing the cursor on the task's line.
    */
   private openSourceFile() {
-    const filePath = this.task.taskLocation?.path;
-    if (filePath && this.app) {
-      const file = this.app.vault.getFileByPath(filePath);
-      if (file) {
-        void this.app.workspace.getLeaf().openFile(file);
-      }
-    }
+    const taskLocation = this.task.taskLocation;
+    if (!taskLocation?.path || !this.app) return;
+
+    const file = this.app.vault.getFileByPath(taskLocation.path);
+    if (!file) return;
+
+    void this.app.workspace.getLeaf().openFile(file, {
+      eState: { line: taskLocation.lineNumber },
+    });
   }
 
   /**
