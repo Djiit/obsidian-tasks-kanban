@@ -3,6 +3,10 @@
   "version": "0.10.3",
   "description": "Kanban board view for Obsidian Tasks",
   "main": "main.js",
+  "engines": {
+    "node": ">=26",
+    "npm": "^12.0.0"
+  },
   "scripts": {
     "dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
     "build": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --minify",
@@ -63,6 +67,7 @@
     }
   },
   "allowScripts": {
-    "esbuild@0.28.1": true
+    "esbuild@0.28.2": true,
+    "fsevents": false
   }
 }
