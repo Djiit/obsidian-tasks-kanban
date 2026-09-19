@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.4](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.3...0.10.4) (2026-09-19)
+
+
+### Bug Fixes
+
+* order priority groups semantically ([11a2c48](https://github.com/Djiit/obsidian-tasks-kanban/commit/11a2c48fd702ad546b782b52156e634999330936))
+* order priority groups semantically ([d196543](https://github.com/Djiit/obsidian-tasks-kanban/commit/d196543ffd78a9c30a8c0c008505aedb14c12452))
+* scroll to task's line when opening its note from a card ([5f64f4f](https://github.com/Djiit/obsidian-tasks-kanban/commit/5f64f4fc94d81a3630313b1198c4d3926a4d770e))
+* scroll to task's line when opening its note from a card ([af0bdb3](https://github.com/Djiit/obsidian-tasks-kanban/commit/af0bdb30b6c18cd6028031c6f38f76c3c607e740)), closes [#74](https://github.com/Djiit/obsidian-tasks-kanban/issues/74)
+
 ## [0.10.3](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.2...0.10.3) (2026-08-10)
 
 
