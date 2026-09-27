@@ -114,6 +114,14 @@ npm install
 npm run build
 ```
 
+### Test Vault
+
+The repo includes a `test-vault/` for manual testing. The plugin's files there
+(`main.js`, `manifest.json`, `styles.css`) are symlinks to the repo root,
+created by `npm run symlink` (run automatically by `build`, `build:dev`, and
+`dev`). On a fresh clone, run `npm run build` once before opening the vault
+in Obsidian, or the plugin cannot be enabled.
+
 ### Development Commands (Obsidian CLI)
 
 Use the [Obsidian CLI](https://help.obsidian.md/cli) for faster development:
