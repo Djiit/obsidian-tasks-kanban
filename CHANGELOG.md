@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.1](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.11.0...0.11.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* **dev:** restore test-vault main.js symlink on build ([3972a01](https://github.com/Djiit/obsidian-tasks-kanban/commit/3972a01d15232635f4851254eec07fa6e067691f))
+* **dev:** restore test-vault main.js symlink on build ([6ecdb52](https://github.com/Djiit/obsidian-tasks-kanban/commit/6ecdb52b8f9d676f522633f607b6a45128e0ad62))
+
 ## [0.11.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.5...0.11.0) (2026-09-27)
 
 
