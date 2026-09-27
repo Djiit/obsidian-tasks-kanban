@@ -23,6 +23,8 @@ Closes #
 ## Checklist
 
 - [ ] I opened an issue before submitting this PR (or this is a trivial change)
+- [ ] If `allowScripts` changed in package.json, I reviewed each entry (it is a code-execution permission list)
+- [ ] If this change impacts the UI, I attached a screenshot or short video (e.g. `gh pr comment --attach`)
 - [ ] `npm run lint` passes
 - [ ] `npm test` passes
 - [ ] `npm run build` succeeds
