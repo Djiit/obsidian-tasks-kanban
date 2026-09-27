@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.5](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.4...0.10.5) (2026-09-27)
+
+
+### Bug Fixes
+
+* expose custom column settings in the Obsidian 1.13 settings UI ([31950e2](https://github.com/Djiit/obsidian-tasks-kanban/commit/31950e2af410ed859554d71b39010c2662262b44))
+* install npm 12 explicitly in CI and mise ([30fb45e](https://github.com/Djiit/obsidian-tasks-kanban/commit/30fb45e8fdc608e86d0f2b25d1d6c37504ea3a67))
+* show custom column settings on Obsidian 1.13+ ([efac40f](https://github.com/Djiit/obsidian-tasks-kanban/commit/efac40f96e8b78d8b75ea5e2eb71aa0a953b8545))
+
 ## [0.10.4](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.3...0.10.4) (2026-09-19)
 
 
