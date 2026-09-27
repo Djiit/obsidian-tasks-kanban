@@ -8,7 +8,7 @@
     "npm": ">=10"
   },
   "scripts": {
-    "dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
+    "dev": "npm run symlink && esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
     "build": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --minify && npm run symlink",
     "build:dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian && npm run symlink",
     "dev:reload": "obsidian plugin:reload id=tasks-kanban",
@@ -20,7 +20,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "prepare": "husky",
-    "symlink": "mkdir -p test-vault/.obsidian/plugins/tasks-kanban && ln -sfn ../../../../main.js test-vault/.obsidian/plugins/tasks-kanban/main.js"
+    "symlink": "mkdir -p test-vault/.obsidian/plugins/tasks-kanban && cd test-vault/.obsidian/plugins/tasks-kanban && ln -sfn ../../../../main.js main.js && ln -sfn ../../../../manifest.json manifest.json && ln -sfn ../../../../styles.css styles.css"
   },
   "keywords": [
     "obsidian",
