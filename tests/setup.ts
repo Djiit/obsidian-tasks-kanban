@@ -1,18 +1,7 @@
 import { vi } from "vitest";
 
-// Mock Obsidian API
-vi.mock("obsidian", () => ({
-  Plugin: class {},
-  ItemView: class {},
-  WorkspaceLeaf: class {},
-  Notice: class {},
-  App: class {},
-  Vault: class {},
-  Workspace: class {},
-  MetadataCache: class {},
-  TFile: class {},
-  setTooltip: vi.fn(),
-}));
+// Mock Obsidian API with the shared stub module.
+vi.mock("obsidian", async () => await import("./__mocks__/obsidian"));
 
 // Apply polyfills directly to the prototype so every element gets them.
 const proto = HTMLElement.prototype as Record<string, unknown>;
@@ -40,6 +29,23 @@ if (!proto.setText) {
   proto.setText = function setText(text: string) {
     this.textContent = text;
   } as (text: string) => void;
+}
+if (!proto.createEl) {
+  proto.createEl = function createEl(
+    tag: string,
+    opts?: { cls?: string; text?: string; href?: string; type?: string },
+  ): HTMLElement {
+    const el = document.createElement(tag);
+    if (opts?.cls) el.className = opts.cls;
+    if (opts?.text) el.textContent = opts.text;
+    if (opts?.href) el.setAttribute("href", opts.href);
+    if (opts?.type) el.setAttribute("type", opts.type);
+    this.appendChild(el);
+    return el;
+  } as (
+    tag: string,
+    opts?: { cls?: string; text?: string; href?: string; type?: string },
+  ) => HTMLElement;
 }
 if (!proto.createDiv) {
   proto.createDiv = function createDiv(opts?: {

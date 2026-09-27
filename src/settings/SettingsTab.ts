@@ -4,6 +4,7 @@ import {
   PluginSettingTab,
   Setting,
   type SettingDefinitionItem,
+  type SettingGroupItem,
 } from "obsidian";
 
 import { parseQuery } from "../query/boardQuery";
@@ -70,6 +71,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
               placeholder: QUERY_PLACEHOLDER,
             },
           },
+          ...this.baseColumnDefinitions(),
         ],
       },
       {
@@ -96,9 +98,116 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
               placeholder: QUERY_PLACEHOLDER,
             },
           },
+          ...this.boardColumnDefinitions(board),
         ]),
       },
     ];
+  }
+
+  /**
+   * Custom-column definitions for the base board: a toggle, one editor row per
+   * column, and an Add column action. Obsidian 1.13+ renders settings from
+   * these definitions; without them the column editor is unreachable.
+   */
+  private baseColumnDefinitions(): SettingGroupItem[] {
+    const data = this.plugin.getPluginData();
+    return [
+      this.columnsToggleDefinition("baseColumnsEnabled"),
+      ...data.baseColumns.map((column) =>
+        this.columnEditorDefinition(
+          column,
+          () => void this.saveBaseColumns(data.baseColumns, false),
+          () =>
+            void this.saveBaseColumns(
+              data.baseColumns.filter((c) => c.id !== column.id),
+              true,
+            ),
+        ),
+      ),
+      {
+        name: "Add column",
+        action: () => {
+          void this.saveBaseColumns(
+            [
+              ...data.baseColumns,
+              { id: newColumnId(), title: "", symbols: [] },
+            ],
+            true,
+          );
+        },
+        visible: () => this.plugin.getPluginData().baseColumns.length > 0,
+      },
+    ];
+  }
+
+  /** Custom-column definitions for one saved board (see {@link baseColumnDefinitions}). */
+  private boardColumnDefinitions(board: SavedBoard): SettingGroupItem[] {
+    return [
+      this.columnsToggleDefinition(`savedBoardColumnsEnabled-${board.id}`),
+      ...(board.columns ?? []).map((column) =>
+        this.columnEditorDefinition(
+          column,
+          () =>
+            void this.saveBoardColumns(board.id, board.columns ?? [], false),
+          () =>
+            void this.saveBoardColumns(
+              board.id,
+              (board.columns ?? []).filter((c) => c.id !== column.id),
+              true,
+            ),
+        ),
+      ),
+      {
+        name: "Add column",
+        action: () => {
+          void this.saveBoardColumns(
+            board.id,
+            [
+              ...(board.columns ?? []),
+              { id: newColumnId(), title: "", symbols: [] },
+            ],
+            true,
+          );
+        },
+        visible: () =>
+          (this.plugin
+            .getPluginData()
+            .savedBoards.find((b) => b.id === board.id)?.columns?.length ?? 0) >
+          0,
+      },
+    ];
+  }
+
+  /** The on/off toggle that switches a board between default and custom columns. */
+  private columnsToggleDefinition(key: string): SettingGroupItem {
+    return {
+      name: "Custom columns",
+      desc: "Off: one column per status type. On: define columns as status-symbol partitions.",
+      aliases: ["columns", "statuses", "status symbols", "board"],
+      control: {
+        type: "toggle",
+        key,
+      },
+    };
+  }
+
+  /** One custom-column editor row, rendered imperatively via the shared controls. */
+  private columnEditorDefinition(
+    column: ColumnConfig,
+    onEdit: () => void,
+    onDelete: () => void,
+  ): SettingGroupItem {
+    return {
+      name: column.title || "Column",
+      desc: "Pick the status symbols this column collects. The first selected symbol is written when a card is dropped into it.",
+      aliases: [column.title, ...column.symbols].filter(Boolean),
+      render: (setting: Setting) => {
+        this.attachColumnControls(setting, column, this.plugin.getStatuses(), {
+          onEdit,
+          onDelete,
+        });
+      },
+    };
   }
 
   getControlValue(key: string): unknown {
@@ -108,6 +217,11 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     }
     if (key === "baseColumnsEnabled") {
       return data.baseColumns.length > 0;
+    }
+    if (key.startsWith("savedBoardColumnsEnabled-")) {
+      const boardId = key.replace("savedBoardColumnsEnabled-", "");
+      const board = data.savedBoards.find((b) => b.id === boardId);
+      return (board?.columns?.length ?? 0) > 0;
     }
     if (key.startsWith("savedBoardName-")) {
       const boardId = key.replace("savedBoardName-", "");
@@ -137,11 +251,16 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       const newColumns = enabled
         ? [{ id: newColumnId(), title: "", symbols: [] }]
         : [];
-      await this.plugin.saveSettings(
-        data.baseQuery,
-        newColumns,
-        data.savedBoards,
-      );
+      await this.saveBaseColumns(newColumns, true);
+      return;
+    }
+    if (key.startsWith("savedBoardColumnsEnabled-")) {
+      const boardId = key.replace("savedBoardColumnsEnabled-", "");
+      const enabled = value as boolean;
+      const newColumns = enabled
+        ? [{ id: newColumnId(), title: "", symbols: [] }]
+        : [];
+      await this.saveBoardColumns(boardId, newColumns, true);
       return;
     }
     if (key.startsWith("savedBoardName-")) {
@@ -167,6 +286,51 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         savedBoards,
       );
       return;
+    }
+  }
+
+  /**
+   * Re-render the settings definitions UI. Only called from the definitions
+   * path, which Obsidian only runs on 1.13+; feature-detect so the plugin keeps
+   * declaring minAppVersion 1.12.7 (older versions use the display() path).
+   */
+  private refreshDefinitions(): void {
+    (this as unknown as { update?: () => void }).update?.();
+  }
+
+  /**
+   * Persist the base board's column slice. `rerender` rebuilds the settings UI
+   * after structural changes (toggle/add/delete); in-place edits skip it so the
+   * control being typed in keeps focus.
+   */
+  private async saveBaseColumns(
+    columns: ColumnConfig[],
+    rerender: boolean,
+  ): Promise<void> {
+    const data = this.plugin.getPluginData();
+    await this.plugin.saveSettings(data.baseQuery, columns, data.savedBoards);
+    if (rerender) {
+      this.refreshDefinitions();
+    }
+  }
+
+  /** Same as {@link saveBaseColumns}, for one saved board's column slice. */
+  private async saveBoardColumns(
+    boardId: string,
+    columns: ColumnConfig[],
+    rerender: boolean,
+  ): Promise<void> {
+    const data = this.plugin.getPluginData();
+    const savedBoards = data.savedBoards.map((b) =>
+      b.id === boardId ? { ...b, columns } : b,
+    );
+    await this.plugin.saveSettings(
+      data.baseQuery,
+      data.baseColumns,
+      savedBoards,
+    );
+    if (rerender) {
+      this.refreshDefinitions();
     }
   }
 
@@ -323,7 +487,27 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     onChange: (columns: ColumnConfig[]) => void,
     statuses: StatusInfo[],
   ): void {
-    const setting = new Setting(containerEl)
+    this.attachColumnControls(new Setting(containerEl), column, statuses, {
+      onDelete: () => {
+        onChange(columns.filter((c) => c.id !== column.id));
+        this.render();
+      },
+    });
+  }
+
+  /**
+   * Attach the shared column editor to `setting`: a name input, a status-symbol
+   * checkbox list (the first checked symbol is the drop target), and a delete
+   * button. Edits mutate `column` in place and call `onEdit` so the caller can
+   * persist them; deletion is left to `onDelete`.
+   */
+  private attachColumnControls(
+    setting: Setting,
+    column: ColumnConfig,
+    statuses: StatusInfo[],
+    handlers: { onEdit?: () => void; onDelete: () => void },
+  ): void {
+    setting
       .setClass("tasks-kanban-setting-column")
       .addText((text) => {
         text
@@ -331,16 +515,14 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
           .setValue(column.title)
           .onChange((value) => {
             column.title = value;
+            handlers.onEdit?.();
           });
       })
       .addExtraButton((button) => {
         button
           .setIcon("trash")
           .setTooltip("Delete column")
-          .onClick(() => {
-            onChange(columns.filter((c) => c.id !== column.id));
-            this.render();
-          });
+          .onClick(() => handlers.onDelete());
       });
 
     // Status-symbol checkbox list. The first checked symbol (in status order) is
@@ -365,6 +547,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
           );
         column.symbols = checkedSymbols;
         this.refreshColumnHint(setting.controlEl, column, statuses);
+        handlers.onEdit?.();
       });
       label.createSpan({
         cls: "tasks-kanban-column-symbol-text",
