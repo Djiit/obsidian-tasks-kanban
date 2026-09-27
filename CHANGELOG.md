@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.5...0.11.0) (2026-09-27)
+
+
+### Features
+
+* add path and folder query filters ([60310c4](https://github.com/Djiit/obsidian-tasks-kanban/commit/60310c4c7ee8b6e7ebd59dbb537e4eb7476e3747))
+* add path and folder query filters ([c947896](https://github.com/Djiit/obsidian-tasks-kanban/commit/c94789608ebac4d4c452448abfa282ef61cc2101)), closes [#75](https://github.com/Djiit/obsidian-tasks-kanban/issues/75)
+
 ## [0.10.5](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.4...0.10.5) (2026-09-27)
 
 
