@@ -72,7 +72,7 @@ const PRIORITY_RANK: Readonly<Record<string, number>> = {
 };
 
 /** The path's parent folder, always ending in `/` (root → `/`). */
-function folderOf(path: string): string {
+export function folderOf(path: string): string {
   const slash = path.lastIndexOf("/");
   return slash === -1 ? "/" : path.slice(0, slash + 1);
 }
