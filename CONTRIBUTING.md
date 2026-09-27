@@ -20,7 +20,7 @@ Use the [bug report](.github/ISSUE_TEMPLATE/bug_report.md) or [feature request](
 
 This project pins its toolchain and npm security settings:
 
-- **npm 12 required.** The `engines` field in `package.json` is enforced with `engine-strict=true` in `.npmrc`, so installs fail on an unsupported Node/npm version.
+- **npm 12 recommended.** `engines` declares a floor (`node >=20`, `npm >=10`) instead of hard-failing older toolchains, so external automation (like Obsidian's plugin review bot, which runs a stock Node/npm) can install the repo. npm 12 is still the version to develop with: the supply-chain settings below only take effect on it.
 - **Install scripts are opt-in.** npm 12 blocks dependency lifecycle scripts unless they are listed in the `allowScripts` field of `package.json`. That field is a code-execution permission list: review its diffs in PRs the same way you review lockfile changes.
   - To see unreviewed entries: `npm install-scripts ls`
   - To approve a package you trust: `npm install-scripts approve <pkg>` (writes a version-pinned entry by default — keep it pinned)
