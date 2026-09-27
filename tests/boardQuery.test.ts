@@ -67,12 +67,68 @@ describe("parseQuery", () => {
     expect(errors).toEqual([]);
   });
 
-  it('parses "tag not includes" and strips the leading #', () => {
-    const { query, errors } = parseQuery(
+  it('parses "tag does not include" and strips the leading #', () => {
+    const { query, errors, warnings } = parseQuery(
+      "tag does not include #book\ntag does not include movie",
+    );
+    expect(getExcludedTags(query)).toEqual(["book", "movie"]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('parses legacy "tag not includes" but warns about deprecation', () => {
+    const { query, errors, warnings } = parseQuery(
       "tag not includes #book\ntag not includes movie",
     );
     expect(getExcludedTags(query)).toEqual(["book", "movie"]);
     expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("Line 1");
+    expect(warnings[0]).toContain("deprecated");
+    expect(warnings[0]).toContain("does not include");
+  });
+
+  it('parses "path includes" and "path does not include"', () => {
+    const { query, errors, warnings } = parseQuery(
+      "path includes 4-Projects\npath does not include Archive",
+    );
+    expect(query.filters).toEqual([
+      { kind: "path", value: "4-Projects" },
+      { kind: "path", value: "Archive", negated: true },
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('parses "folder includes" and "folder does not include"', () => {
+    const { query, errors, warnings } = parseQuery(
+      "folder includes 5-Areas/\nfolder does not include Templates",
+    );
+    expect(query.filters).toEqual([
+      { kind: "folder", value: "5-Areas/" },
+      { kind: "folder", value: "Templates", negated: true },
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('parses legacy "path not includes" and "folder not includes" with warnings', () => {
+    const { query, errors, warnings } = parseQuery(
+      "path not includes Archive\nfolder not includes Templates",
+    );
+    expect(query.filters).toEqual([
+      { kind: "path", value: "Archive", negated: true },
+      { kind: "folder", value: "Templates", negated: true },
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("Line 1");
+    expect(warnings[1]).toContain("Line 2");
+  });
+
+  it("flags an empty path or folder value as an error", () => {
+    expect(parseQuery("path includes").errors).toHaveLength(1);
+    expect(parseQuery("folder does not include   ").errors).toHaveLength(1);
   });
 
   it('parses "description includes"', () => {
@@ -228,7 +284,7 @@ describe("parseQuery", () => {
 
     it("flags valid-but-unsupported Tasks instructions", () => {
       for (const line of [
-        "path includes Projects",
+        "filename includes Projects",
         "priority is high",
         "done",
         "status.type is TODO",
@@ -252,7 +308,7 @@ describe("parseQuery", () => {
 
     it("keeps valid lines while collecting errors for bad ones", () => {
       const { query, errors } = parseQuery(
-        "tag includes #work\npath includes X\nsort by due",
+        "tag includes #work\npriority is high\nsort by due",
       );
       expect(getTags(query)).toEqual(["work"]);
       expect(query.sort.field).toBe("dueDate");
@@ -268,9 +324,35 @@ describe("serializeQuery / round-trip", () => {
     expect(serializeQuery(query)).toBe("tag includes #work");
   });
 
-  it('serializes "tag not includes" in reference-exact form', () => {
+  it('serializes negated tags in reference-exact "does not include" form', () => {
+    const { query } = parseQuery("tag does not include #book");
+    expect(serializeQuery(query)).toBe("tag does not include #book");
+  });
+
+  it("normalizes legacy negation spelling on serialize", () => {
     const { query } = parseQuery("tag not includes #book");
-    expect(serializeQuery(query)).toBe("tag not includes #book");
+    expect(serializeQuery(query)).toBe("tag does not include #book");
+    // The normalized form re-parses without warnings.
+    const second = parseQuery(serializeQuery(query));
+    expect(second.warnings).toEqual([]);
+    expect(second.query).toEqual(query);
+  });
+
+  it("serializes path and folder filters", () => {
+    const { query } = parseQuery(
+      "path includes 4-Projects\npath does not include Archive\nfolder includes 5-Areas/",
+    );
+    expect(serializeQuery(query)).toBe(
+      "path includes 4-Projects\npath does not include Archive\nfolder includes 5-Areas/",
+    );
+  });
+
+  it("round-trips a query with path and folder filters", () => {
+    const source =
+      "path includes 4-Projects\nfolder does not include Templates\nsort by due";
+    const first = parseQuery(source).query;
+    const second = parseQuery(serializeQuery(first)).query;
+    expect(second).toEqual(first);
   });
 
   it("serializes a mixed query deterministically", () => {
@@ -287,7 +369,7 @@ describe("serializeQuery / round-trip", () => {
       "tag includes #work\ntag not includes #book\nsort by due",
     );
     expect(serializeQuery(query)).toBe(
-      "tag includes #work\ntag not includes #book\nsort by due",
+      "tag includes #work\ntag does not include #book\nsort by due",
     );
   });
 
@@ -534,6 +616,117 @@ describe("applyBoardQuery", () => {
       "tag not includes #book\ndescription includes Read",
     );
     expect(ids(applyBoardQuery(tasks, query))).toEqual(["b"]);
+  });
+
+  describe("path and folder filters", () => {
+    const tasks = [
+      createTask({
+        id: "project",
+        taskLocation: { path: "4-Projects/alpha/note.md", lineNumber: 1 },
+      }),
+      createTask({
+        id: "area",
+        taskLocation: { path: "5-Areas/inbox.md", lineNumber: 1 },
+      }),
+      createTask({
+        id: "archive",
+        taskLocation: { path: "6-Archive/old.md", lineNumber: 1 },
+      }),
+      createTask({
+        id: "root",
+        taskLocation: { path: "4-Projects.md", lineNumber: 1 },
+      }),
+    ];
+
+    it("matches path includes case-insensitively as a substring", () => {
+      const { query } = parseQuery("path includes 4-projects");
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project", "root"]);
+    });
+
+    it("ORs multiple path includes (the issue's use case)", () => {
+      const { query } = parseQuery(
+        "path includes 4-Projects\npath includes 5-Areas/",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "project",
+        "area",
+        "root",
+      ]);
+    });
+
+    it("folder includes matches the folder portion only", () => {
+      const { query } = parseQuery("folder includes 4-Projects");
+      // root file "4-Projects.md" lives in "/" and must not match
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project"]);
+    });
+
+    it("excludes tasks matching a path does not include filter", () => {
+      const { query } = parseQuery("path does not include Archive");
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "project",
+        "area",
+        "root",
+      ]);
+    });
+
+    it("excludes tasks matching any negated path (AND of exclusions)", () => {
+      const { query } = parseQuery(
+        "path does not include Archive\npath does not include 5-Areas",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project", "root"]);
+    });
+
+    it("ANDs path and folder filters together", () => {
+      const { query } = parseQuery(
+        "path includes 4-Projects\nfolder does not include 6-Archive",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project", "root"]);
+    });
+
+    it("ANDs path filters with tag and description filters", () => {
+      const mixed = [
+        createTask({
+          id: "keep",
+          tags: ["work"],
+          description: "Write docs",
+          taskLocation: { path: "4-Projects/a.md", lineNumber: 1 },
+        }),
+        createTask({
+          id: "wrongPath",
+          tags: ["work"],
+          description: "Write docs",
+          taskLocation: { path: "9-Other/a.md", lineNumber: 1 },
+        }),
+        createTask({
+          id: "wrongDesc",
+          tags: ["work"],
+          description: "Fix bugs",
+          taskLocation: { path: "4-Projects/b.md", lineNumber: 1 },
+        }),
+      ];
+      const { query } = parseQuery(
+        "path includes 4-Projects\ntag includes #work\ndescription includes write",
+      );
+      expect(ids(applyBoardQuery(mixed, query))).toEqual(["keep"]);
+    });
+
+    it("drops tasks without a location on positive filters, keeps them on negated", () => {
+      const noLocation = createTask({
+        id: "noLocation",
+        taskLocation: undefined as unknown as Task["taskLocation"],
+      });
+      const included = applyBoardQuery(
+        [noLocation],
+        parseQuery("path includes anything").query,
+      );
+      expect(included).toEqual([]);
+
+      const excluded = applyBoardQuery(
+        [noLocation],
+        parseQuery("path does not include anything").query,
+      );
+      expect(ids(excluded)).toEqual(["noLocation"]);
+    });
   });
 
   describe("date filters", () => {

@@ -9,6 +9,7 @@ import {
 } from "../utils/sortTasks";
 import {
   DEFAULT_GROUP_STATE,
+  folderOf,
   type GroupField,
   type GroupState,
 } from "../utils/groupTasks";
@@ -30,14 +31,17 @@ import {
  * — only the instructions the bars themselves produce:
  *
  *   tag includes #<tag>
- *   tag not includes #<tag>
+ *   tag does not include #<tag>   (negation; the legacy `tag not includes`
+ *     spelling still parses but is deprecated and warns)
+ *   path includes <text> / path does not include <text>
+ *   folder includes <text> / folder does not include <text>
  *   description includes <text>
  *   <date-field> <operator> <value>  (e.g., starts before tomorrow, due after 2026-07-10)
  *   sort by <due|scheduled|start|created|priority> [reverse]
  *   group by <status|priority|due|…|tags|folder|filename> [reverse]
  *
  * Any other line — including valid-but-unsupported Tasks instructions like
- * `path includes …` or `priority is high` — is reported as an error by
+ * `filename includes …` or `priority is high` — is reported as an error by
  * {@link parseQuery} and ignored for filtering, so a query here always reads the
  * same as it would in Tasks.
  */
@@ -52,12 +56,16 @@ export interface BoardQuery {
 
 /**
  * A single supported filter line. Tag values are stored bare (no leading `#`);
- * description matching is case-insensitive substring. Tag filters can be negated
- * (`tag not includes …`), meaning a task must NOT carry that tag.
+ * description matching is case-insensitive substring. Tag, path, and folder
+ * filters can be negated (`… does not include …`), meaning a task must NOT
+ * match. Path filters match the full file path; folder filters match the
+ * containing folder (both case-insensitive substring, mirroring Tasks).
  * Date filters support operators like before, after, on, in, has, no.
  */
 export type FilterInstruction =
   | { kind: "tag"; value: string; negated?: boolean }
+  | { kind: "path"; value: string; negated?: boolean }
+  | { kind: "folder"; value: string; negated?: boolean }
   | { kind: "description"; value: string }
   | DateFilterInstruction;
 
@@ -114,22 +122,25 @@ const GROUP_FIELD_TO_KEYWORD: Partial<Record<GroupField, string>> = {
 
 /** One-line summary of the supported syntax, used in error messages. */
 const SUPPORTED_SYNTAX =
-  "supported: tag includes #<tag>, tag not includes #<tag>, description includes <text>, <date-field> <operator> <value> (e.g., starts before tomorrow), sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
+  "supported: tag includes #<tag>, tag does not include #<tag>, path includes <text>, path does not include <text>, folder includes <text>, folder does not include <text>, description includes <text>, <date-field> <operator> <value> (e.g., starts before tomorrow), sort by <due|scheduled|start|created|priority> [reverse], group by <status|priority|tags|path|folder|filename> [reverse]";
 
 /**
  * Parse a multi-line query string into a {@link BoardQuery}. One instruction per
  * line; blank lines are ignored. Parsing is tolerant: an unrecognised or
  * unsupported line is skipped and recorded in `errors` (with its 1-based line
  * number) so the modal can surface feedback without discarding the whole query.
+ * Deprecated-but-working spellings are recorded in `warnings`.
  */
 export function parseQuery(input: string): {
   query: BoardQuery;
   errors: string[];
+  warnings: string[];
 } {
   const filters: FilterInstruction[] = [];
   let sort: SortState = { ...DEFAULT_SORT_STATE };
   let group: GroupState = { ...DEFAULT_GROUP_STATE };
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   const lines = input.split("\n");
   lines.forEach((rawLine, index) => {
@@ -142,6 +153,9 @@ export function parseQuery(input: string): {
     if (result.error) {
       errors.push(`Line ${index + 1}: ${result.error}`);
       return;
+    }
+    if (result.warning) {
+      warnings.push(`Line ${index + 1}: ${result.warning}`);
     }
     if (result.sort) {
       sort = result.sort;
@@ -156,7 +170,7 @@ export function parseQuery(input: string): {
     }
   });
 
-  return { query: { filters, sort, group }, errors };
+  return { query: { filters, sort, group }, errors, warnings };
 }
 
 /** Parse one already-trimmed, non-empty line. */
@@ -165,6 +179,7 @@ function parseLine(line: string): {
   sort?: SortState;
   group?: GroupState;
   error?: string;
+  warning?: string;
 } {
   // sort by <field> [reverse]
   const sortMatch = /^sort\s+by\s+(\S+)(?:\s+(reverse))?$/i.exec(line);
@@ -198,24 +213,31 @@ function parseLine(line: string): {
     return { filter: dateFilter };
   }
 
-  // tag not includes <tag> (must be checked before plain "tag includes")
-  const tagNotMatch = /^tag\s+not\s+includes\s+(.+)$/i.exec(line);
-  if (tagNotMatch) {
-    const value = normalizeTag(tagNotMatch[1].trim());
-    if (value === "") {
-      return { error: "empty tag" };
-    }
-    return { filter: { kind: "tag", value, negated: true } };
+  // <field> does not include <text> — canonical negation (Tasks' spelling)
+  const negationMatch =
+    /^(tag|path|folder)\s+does\s+not\s+include\s+(.+)$/i.exec(line);
+  if (negationMatch) {
+    return buildFieldFilter(negationMatch[1], negationMatch[2], true);
   }
 
-  // tag includes <tag>
-  const tagMatch = /^tag\s+includes\s+(.+)$/i.exec(line);
-  if (tagMatch) {
-    const value = normalizeTag(tagMatch[1].trim());
-    if (value === "") {
-      return { error: "empty tag" };
+  // <field> not includes <text> — legacy negation, deprecated
+  const legacyMatch = /^(tag|path|folder)\s+not\s+includes\s+(.+)$/i.exec(line);
+  if (legacyMatch) {
+    const result = buildFieldFilter(legacyMatch[1], legacyMatch[2], true);
+    if (result.error) {
+      return result;
     }
-    return { filter: { kind: "tag", value } };
+    return {
+      ...result,
+      warning:
+        '"not includes" is deprecated, use "does not include" (support will be removed in a future version)',
+    };
+  }
+
+  // <field> includes <text>
+  const includesMatch = /^(tag|path|folder)\s+includes\s+(.+)$/i.exec(line);
+  if (includesMatch) {
+    return buildFieldFilter(includesMatch[1], includesMatch[2], false);
   }
 
   // description includes <text>
@@ -225,6 +247,36 @@ function parseLine(line: string): {
   }
 
   return { error: `unsupported instruction "${line}" (${SUPPORTED_SYNTAX})` };
+}
+
+/**
+ * Build a tag/path/folder filter from its raw parts. Tags are normalized bare
+ * (no leading `#`); path/folder values are trimmed. An empty value errors.
+ */
+function buildFieldFilter(
+  field: string,
+  rawValue: string,
+  negated: boolean,
+): { filter?: FilterInstruction; error?: string } {
+  const value = rawValue.trim();
+  const negation = negated ? { negated: true } : {};
+  if (field === "tag") {
+    const tag = normalizeTag(value);
+    if (tag === "") {
+      return { error: "empty tag" };
+    }
+    return { filter: { kind: "tag", value: tag, ...negation } };
+  }
+  if (value === "") {
+    return { error: `empty ${field} value` };
+  }
+  return {
+    filter: {
+      kind: field as "path" | "folder",
+      value,
+      ...negation,
+    },
+  };
 }
 
 /**
@@ -255,8 +307,13 @@ function serializeFilter(filter: FilterInstruction): string {
   switch (filter.kind) {
     case "tag":
       return filter.negated
-        ? `tag not includes #${filter.value}`
+        ? `tag does not include #${filter.value}`
         : `tag includes #${filter.value}`;
+    case "path":
+    case "folder":
+      return filter.negated
+        ? `${filter.kind} does not include ${filter.value}`
+        : `${filter.kind} includes ${filter.value}`;
     case "description":
       return `description includes ${filter.value}`;
     case "date":
@@ -307,13 +364,19 @@ export function applyBoardQuery(tasks: Task[], query: BoardQuery): Task[] {
 }
 
 /**
- * Apply filter instructions: positive tag instructions are OR-ed together (a task
- * matches if it carries any selected tag — mirroring the tag bar's multi-select),
- * negative (not includes) tags are AND-ed on top (a task must not carry any
- * excluded tag), and the description instruction is AND-ed on top of all.
- * Date filters are AND-ed with all other filters.
+ * Apply filter instructions: positive instructions of the same kind are OR-ed
+ * together (a task matches if it carries any selected tag, or lives under any
+ * included path/folder — mirroring the tag bar's multi-select), negative
+ * instructions are AND-ed on top (a task must match no excluded value), and
+ * instructions of different kinds are AND-ed together. Date filters are AND-ed
+ * with all other filters.
  *
- * Note: this OR-within-tags differs from Tasks, where two `tag includes` lines
+ * Path filters match the full file path, folder filters the containing folder
+ * (parent prefix with trailing `/`); both are case-insensitive substring
+ * matches, mirroring Tasks. A task without a location matches no positive
+ * filter (excluded) and no negated filter (retained).
+ *
+ * Note: this OR-within-kind differs from Tasks, where two `tag includes` lines
  * AND. It preserves the existing tag-filter UX; see NOTES.md.
  */
 function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
@@ -350,8 +413,28 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
     (f): f is DateFilterInstruction => f.kind === "date",
   );
 
+  const partitionValues = (
+    kind: "path" | "folder",
+    negated: boolean,
+  ): string[] =>
+    filters
+      .filter(
+        (f): f is Extract<FilterInstruction, { kind: "path" | "folder" }> =>
+          f.kind === kind && Boolean(f.negated) === negated,
+      )
+      .map((f) => f.value.toLowerCase());
+
+  const includePaths = partitionValues("path", false);
+  const excludePaths = partitionValues("path", true);
+  const includeFolders = partitionValues("folder", false);
+  const excludeFolders = partitionValues("folder", true);
+
   return tasks.filter((task) => {
     const taskTags = (task.tags ?? []).map(normalizeTag);
+
+    const rawPath = task.taskLocation?.path ?? "";
+    const taskPath = rawPath.toLowerCase();
+    const taskFolder = rawPath ? folderOf(rawPath).toLowerCase() : "";
 
     // Positive tags (includes): OR'd — task must have at least one.
     if (includeTags.size > 0) {
@@ -360,11 +443,32 @@ function filterTasks(tasks: Task[], filters: FilterInstruction[]): Task[] {
       }
     }
 
-    // Negative tags (not includes): AND'd — task must have none.
+    // Negative tags (does not include): AND'd — task must have none.
     if (excludeTags.size > 0) {
       if (taskTags.some((tag) => excludeTags.has(tag))) {
         return false;
       }
+    }
+
+    // Paths and folders: positive OR'd within their kind, negations AND'd,
+    // and the two kinds AND'd together.
+    if (
+      includePaths.length > 0 &&
+      !includePaths.some((value) => taskPath.includes(value))
+    ) {
+      return false;
+    }
+    if (excludePaths.some((value) => taskPath.includes(value))) {
+      return false;
+    }
+    if (
+      includeFolders.length > 0 &&
+      !includeFolders.some((value) => taskFolder.includes(value))
+    ) {
+      return false;
+    }
+    if (excludeFolders.some((value) => taskFolder.includes(value))) {
+      return false;
     }
 
     // Description: AND'd — case-insensitive substring match.

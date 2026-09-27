@@ -795,6 +795,15 @@
     font-size: var(--font-ui-smaller);
 }
 
+.tasks-kanban-query-modal-warnings {
+    margin-top: 4px;
+}
+
+.tasks-kanban-query-modal-warning {
+    color: var(--text-warning, #e0a832);
+    font-size: var(--font-ui-smaller);
+}
+
 .tasks-kanban-query-modal-buttons {
     display: flex;
     justify-content: flex-end;
