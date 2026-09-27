@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 
-# Build output
-main.js
+# Build output (repo root only; test-vault symlinks are tracked)
+/main.js
 
 # IDE
 .idea/
