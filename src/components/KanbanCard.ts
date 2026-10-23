@@ -1,6 +1,5 @@
 import type { Task } from "../services/TasksIntegration";
 import { TasksIntegration } from "../services/TasksIntegration";
-import { truncate } from "../utils/truncate";
 import {
   getDateChips,
   getDependencyChips,
@@ -8,7 +7,7 @@ import {
   stripTags,
   type Chip,
 } from "../utils/taskChips";
-import { setTooltip } from "obsidian";
+import { Component, Keymap, MarkdownRenderer, setTooltip } from "obsidian";
 import type { App } from "obsidian";
 
 /**
@@ -21,6 +20,8 @@ export class KanbanCard {
   private app: App;
   private dragStartHandler: ((e: DragEvent) => void) | null = null;
   private clickHandler: ((e: MouseEvent) => void) | null = null;
+  /** Owns whatever the Markdown renderer attaches to the description. */
+  private renderComponent = new Component();
 
   constructor(
     container: HTMLElement,
@@ -73,15 +74,13 @@ export class KanbanCard {
     }
 
     // Content: description
-    const fullTitle = stripTags(this.task.description, this.task.tags);
     const descEl = this.container.createDiv({
       cls: "tasks-kanban-card-description",
     });
-    const displayText = truncate(fullTitle);
-    descEl.setText(displayText);
-    if (displayText !== fullTitle) {
-      descEl.setAttribute("title", fullTitle);
-    }
+    this.renderDescription(
+      descEl,
+      stripTags(this.task.description, this.task.tags),
+    );
 
     // Footer: metadata chips (priority, dates, dependencies)
     this.renderChips();
@@ -89,12 +88,63 @@ export class KanbanCard {
     // Add drag start handler
     this.setupDragAndDrop();
 
-    // Add click handler to open the source file
+    // A click opens the source file, unless it lands on a link in the description
     this.clickHandler = (event: MouseEvent) => {
       event.stopPropagation();
+      const link = (event.target as HTMLElement | null)?.closest("a");
+      if (link) {
+        this.followLink(link, event);
+        return;
+      }
       this.openSourceFile();
     };
     this.container.addEventListener("click", this.clickHandler);
+  }
+
+  /**
+   * Render the description as Markdown, the way the Tasks plugin renders task
+   * descriptions, so links and inline styling show on the card. The height is
+   * capped in CSS rather than by cutting the text, which could split Markdown
+   * syntax such as a link.
+   */
+  private renderDescription(descEl: HTMLElement, markdown: string) {
+    this.renderComponent.load();
+    void MarkdownRenderer.render(
+      this.app,
+      markdown,
+      descEl,
+      this.task.taskLocation?.path ?? "",
+      this.renderComponent,
+    ).then(() => {
+      // The renderer wraps inline text in a paragraph, whose margins would
+      // pad the card.
+      const paragraph = descEl.querySelector(":scope > p");
+      if (paragraph && descEl.childElementCount === 1) {
+        paragraph.replaceWith(...Array.from(paragraph.childNodes));
+      }
+      // A link is natively draggable and would otherwise drag its URL
+      // instead of the card.
+      descEl.querySelectorAll("a").forEach((link) => {
+        link.setAttribute("draggable", "false");
+      });
+    });
+  }
+
+  /**
+   * Follow a link clicked in the description. An internal link opens its note;
+   * an external link is left to its default action, which opens the browser.
+   */
+  private followLink(link: HTMLAnchorElement, event: MouseEvent) {
+    if (!link.classList.contains("internal-link")) return;
+
+    event.preventDefault();
+    const target = link.getAttribute("data-href") ?? link.getAttribute("href");
+    if (!target) return;
+    void this.app.workspace.openLinkText(
+      target,
+      this.task.taskLocation?.path ?? "",
+      Keymap.isModEvent(event),
+    );
   }
 
   /**
@@ -210,6 +260,7 @@ export class KanbanCard {
       this.clickHandler = null;
     }
 
+    this.renderComponent.unload();
     this.container.remove();
   }
 

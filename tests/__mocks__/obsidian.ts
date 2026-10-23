@@ -19,6 +19,30 @@ export class MetadataCache {}
 export class TFile {}
 export function setTooltip() {}
 
+export class Component {
+  load() {}
+  unload() {}
+}
+
+export class MarkdownRenderer {
+  // Mirrors Obsidian, which wraps inline text in a paragraph.
+  static async render(
+    _app: unknown,
+    markdown: string,
+    el: HTMLElement,
+  ): Promise<void> {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = markdown;
+    el.appendChild(paragraph);
+  }
+}
+
+export class Keymap {
+  static isModEvent(): boolean {
+    return false;
+  }
+}
+
 export class SettingTab {
   app: App;
   plugin: unknown;
