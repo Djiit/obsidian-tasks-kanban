@@ -191,6 +191,28 @@ Practical notes:
   the **Save** button (`query(app, text: 'Save')` → `click`). `Cancel` closes
   without applying.
 
+### Runtime probing via the console
+
+To inspect runtime values (e.g. the actual shape of a Tasks cache payload),
+add a temporary `console.log` probe in the source, `npm run build:dev`, and
+read the output with the Obsidian CLI instead of driving the developer tools
+GUI:
+
+```bash
+obsidian vault=test-vault dev:debug on   # start capturing console messages
+# trigger the code path (e.g. edit a fixture file to force a cache-update)
+obsidian vault=test-vault dev:console limit=100
+obsidian vault=test-vault dev:debug off  # stop capturing
+```
+
+Notes:
+
+- Capture starts only after `dev:debug on`; startup messages are lost. To
+  fire an event that already happened, modify a fixture file (a real content
+  change — `touch` is not enough) and wait a few seconds for Tasks to
+  re-index.
+- Remove the probe and rebuild before committing.
+
 ## Gotchas
 
 - **Task ID Format**: Tasks plugin uses `^task-id` format for task identification
