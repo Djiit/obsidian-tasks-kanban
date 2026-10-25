@@ -224,36 +224,65 @@ export function matchesDateFilter(
 /**
  * Normalize a date string to YYYY-MM-DD format.
  * Handles various formats including ISO strings with time components.
+ *
+ * Values are read in the local timezone: the Tasks plugin emits Moment
+ * objects whose ISO representation is UTC, which is one day off the user's
+ * calendar date in UTC-positive timezones.
  */
 function normalizeDateString(value: unknown): string | null {
   if (value === null || value === undefined) {
     return null;
   }
 
-  // Handle Date objects by converting to ISO string first
+  // Handle Date objects using local calendar components
   if (value instanceof Date) {
-    // Convert Date to ISO string, then extract just the date part
-    try {
-      const iso = value.toISOString();
-      return iso.slice(0, 10);
-    } catch {
+    if (Number.isNaN(value.getTime())) {
       return null;
     }
+    return toLocalISODate(value);
   }
 
   if (typeof value !== "string") {
-    // For Moment-like objects, try toISOString first
-    if (
-      typeof value === "object" &&
-      value &&
-      typeof (value as { toISOString?: () => string }).toISOString ===
-        "function"
-    ) {
-      try {
-        const iso = (value as { toISOString: () => string }).toISOString();
-        return typeof iso === "string" ? iso.slice(0, 10) : null;
-      } catch {
-        return null;
+    // For Moment-like objects, prefer the local calendar getters, falling
+    // back to other local representations; never toISOString (UTC).
+    if (value && typeof value === "object") {
+      const v = value as {
+        year?: () => number;
+        month?: () => number;
+        date?: () => number;
+        format?: (fmt: string) => string;
+        toDate?: () => Date;
+      };
+      if (
+        typeof v.year === "function" &&
+        typeof v.month === "function" &&
+        typeof v.date === "function"
+      ) {
+        try {
+          return `${v.year()}-${String(v.month() + 1).padStart(2, "0")}-${String(
+            v.date(),
+          ).padStart(2, "0")}`;
+        } catch {
+          return null;
+        }
+      }
+      if (typeof v.format === "function") {
+        try {
+          const formatted = v.format("YYYY-MM-DD");
+          return typeof formatted === "string" && formatted ? formatted : null;
+        } catch {
+          return null;
+        }
+      }
+      if (typeof v.toDate === "function") {
+        try {
+          const d = v.toDate();
+          return d instanceof Date && !Number.isNaN(d.getTime())
+            ? toLocalISODate(d)
+            : null;
+        } catch {
+          return null;
+        }
       }
     }
     return null;
@@ -489,9 +518,19 @@ function isDateInCurrentYear(taskDate: string, referenceDate: Date): boolean {
 
 /**
  * Serialize a date filter instruction back to a query line.
+ * Implicit operators (e.g., "due today") are preserved as entered rather
+ * than expanded to their explicit form ("due on today").
  */
 export function serializeDateFilter(filter: DateFilterInstruction): string {
   // Use the stored keyword if available, otherwise fall back to the default
   const keyword = filter.keyword || DATE_FIELD_TO_KEYWORD[filter.field];
+
+  if (filter.operator === "on" && RELATIVE_DATES.has(filter.value)) {
+    return `${keyword} ${filter.value}`;
+  }
+  if (filter.operator === "in" && RELATIVE_PERIODS.has(filter.value)) {
+    return `${keyword} ${filter.value}`;
+  }
+
   return `${keyword} ${filter.operator} ${filter.value}`;
 }
