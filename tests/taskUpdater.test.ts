@@ -32,6 +32,7 @@ const mockApp = {
 const mockTasksIntegration = {
   getStatusBySymbol: vi.fn(),
   getWriteSettings: vi.fn(),
+  getEditTaskLineModal: vi.fn(),
   getTasks: vi.fn(),
   subscribe: vi.fn(),
   unload: vi.fn(),
@@ -941,6 +942,83 @@ describe("TaskUpdater", () => {
         mockFile,
         "- [ ] Test task [completion:: 2026-07-19]",
       );
+    });
+  });
+
+  describe("editTask", () => {
+    const editTaskLineModal = vi.fn();
+
+    beforeEach(() => {
+      mockApp.vault.getAbstractFileByPath.mockReturnValue(mockFile);
+      mockApp.vault.read.mockResolvedValue("# Notes\n- [ ] Test task\nend");
+      editTaskLineModal.mockReset();
+      mockTasksIntegration.getEditTaskLineModal.mockReturnValue(
+        editTaskLineModal,
+      );
+    });
+
+    it("opens the modal with the task's line and writes the edited line back", async () => {
+      editTaskLineModal.mockResolvedValue("- [ ] Test task ⏫");
+
+      const result = await taskUpdater.editTask(createTask(" ", 1));
+
+      expect(result).toBe(true);
+      expect(editTaskLineModal).toHaveBeenCalledWith("- [ ] Test task");
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "# Notes\n- [ ] Test task ⏫\nend",
+      );
+    });
+
+    it("writes every line the modal returns, e.g. the next recurrence", async () => {
+      editTaskLineModal.mockResolvedValue(
+        "- [ ] Test task 🔁 every day 📅 2026-07-21\n- [x] Test task 🔁 every day 📅 2026-07-20",
+      );
+
+      const result = await taskUpdater.editTask(createTask(" ", 1));
+
+      expect(result).toBe(true);
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "# Notes\n- [ ] Test task 🔁 every day 📅 2026-07-21\n- [x] Test task 🔁 every day 📅 2026-07-20\nend",
+      );
+    });
+
+    it("leaves the file alone when the modal is cancelled", async () => {
+      editTaskLineModal.mockResolvedValue("");
+
+      const result = await taskUpdater.editTask(createTask(" ", 1));
+
+      expect(result).toBe(false);
+      expect(mockApp.vault.modify).not.toHaveBeenCalled();
+    });
+
+    it("does not overwrite a line that changed while the modal was open", async () => {
+      editTaskLineModal.mockResolvedValue("- [ ] Test task ⏫");
+      mockApp.vault.read.mockResolvedValue("# Notes\n- [x] Other task\nend");
+
+      const result = await taskUpdater.editTask(createTask(" ", 1));
+
+      expect(result).toBe(false);
+      expect(mockApp.vault.modify).not.toHaveBeenCalled();
+    });
+
+    it("returns false without a modal when Tasks offers no edit API", async () => {
+      mockTasksIntegration.getEditTaskLineModal.mockReturnValue(null);
+
+      const result = await taskUpdater.editTask(createTask(" ", 1));
+
+      expect(result).toBe(false);
+      expect(mockApp.vault.modify).not.toHaveBeenCalled();
+    });
+
+    it("returns false when the task's file can't be found", async () => {
+      mockApp.vault.getAbstractFileByPath.mockReturnValue(null);
+
+      const result = await taskUpdater.editTask(createTask(" ", 1));
+
+      expect(result).toBe(false);
+      expect(editTaskLineModal).not.toHaveBeenCalled();
     });
   });
 });

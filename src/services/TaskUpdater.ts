@@ -1,10 +1,10 @@
-import { type App, TFile } from "obsidian";
+import { type App, Notice, TFile } from "obsidian";
 import type { Task } from "./TasksIntegration";
 import type { TasksIntegration } from "./TasksIntegration";
 import { FIELD_SYNTAX, resolveTaskFormat } from "../utils/taskFormat";
 
 /**
- * Service for updating task status in source files
+ * Service for updating tasks in source files
  */
 export class TaskUpdater {
   private app: App;
@@ -24,16 +24,11 @@ export class TaskUpdater {
     task: Task,
     newStatusSymbol: string,
   ): Promise<boolean> {
-    const filePath = task.taskLocation?.path;
-    const lineNumber = task.taskLocation?.lineNumber;
-    if (!filePath || lineNumber === undefined) {
+    const file = this.findTaskFile(task);
+    if (!file) {
       return false;
     }
-
-    const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !(file instanceof TFile)) {
-      return false;
-    }
+    const lineNumber = task.taskLocation.lineNumber;
 
     try {
       const content = await this.app.vault.read(file);
@@ -109,6 +104,56 @@ export class TaskUpdater {
       console.error("Failed to update task status:", error);
       return false;
     }
+  }
+
+  /**
+   * Edit a task in the Tasks plugin's "Create or edit task" modal and write
+   * the result back in place of the task's line. Returns false when Tasks
+   * offers no such modal, the task's file can't be found, the modal is
+   * cancelled, or the line changed while the modal was open.
+   */
+  async editTask(task: Task): Promise<boolean> {
+    const editTaskLine = this.tasksIntegration.getEditTaskLineModal();
+    const file = this.findTaskFile(task);
+    if (!editTaskLine || !file) {
+      return false;
+    }
+    const lineNumber = task.taskLocation.lineNumber;
+
+    try {
+      const editedLines = await editTaskLine(task.originalMarkdown);
+      if (editedLines === "") {
+        return false;
+      }
+
+      const lines = (await this.app.vault.read(file)).split("\n");
+      // The modal edited the line as the Tasks cache last saw it. If the file
+      // has changed since, writing would overwrite whatever is there now.
+      if (lines[lineNumber] !== task.originalMarkdown) {
+        new Notice("The task changed in its file, so the edit was not saved.");
+        return false;
+      }
+
+      lines[lineNumber] = editedLines;
+      await this.app.vault.modify(file, lines.join("\n"));
+      return true;
+    } catch (error) {
+      console.error("Failed to edit task:", error);
+      return false;
+    }
+  }
+
+  /**
+   * The file holding the task, or null when the task has no location or its
+   * path doesn't resolve to a file.
+   */
+  private findTaskFile(task: Task): TFile | null {
+    const filePath = task.taskLocation?.path;
+    if (!filePath || task.taskLocation?.lineNumber === undefined) {
+      return null;
+    }
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    return file instanceof TFile ? file : null;
   }
 
   /**
