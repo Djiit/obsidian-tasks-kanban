@@ -72,6 +72,7 @@ The board supports a subset of Tasks query syntax. For complete documentation, s
 **Sorting:**
 - `sort by <field>` / `sort by <field> reverse`
 - Fields: `due`, `scheduled`, `start`, `created`, `priority`
+- Add more `sort by` lines to break ties, as in Tasks (e.g., `sort by priority`, then `sort by created reverse`)
 
 **Grouping** (into foldable swimlanes):
 - `group by <field>` / `group by <field> reverse`

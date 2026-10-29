@@ -28,6 +28,8 @@ Each instruction should be on its own line. Blank lines are ignored.
 | `sort by <field>` | Sort tasks by the specified field in ascending order | `sort by due` |
 | `sort by <field> reverse` | Sort tasks by the specified field in descending order | `sort by due reverse` |
 
+Add several `sort by` lines to sort by more than one field. As in Tasks, the first line sorts first, and each later line orders the tasks that tie on the lines before it. Tasks that tie on every line are ordered by description.
+
 #### Supported Sort Fields
 
 - `due` - Due date
@@ -107,6 +109,12 @@ sort by due
 sort by priority reverse
 ```
 
+### Sort by priority, then newest first
+```
+sort by priority
+sort by created reverse
+```
+
 ### Group into swimlanes
 ```
 group by priority
@@ -130,7 +138,9 @@ group by priority
 - Multiple `path includes` (or `folder includes`) instructions are OR-ed together; negations and different filter kinds are AND-ed together
 - Multiple `description includes` instructions are AND-ed together (a task must match all descriptions)
 - Sort instructions are applied after filtering; grouping is applied last
-- Only the last `sort by` / `group by` instruction is used if multiple are provided
+- Multiple `sort by` instructions all apply, in order; the sort bar shows and changes the first one
+- Only the last `group by` instruction is used if multiple are provided
+- A board's own `sort by` lines replace the base query's `sort by` lines as a whole
 
 ## Unsupported Tasks Query Syntax
 

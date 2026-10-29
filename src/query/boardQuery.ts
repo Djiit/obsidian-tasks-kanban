@@ -37,7 +37,8 @@ import {
  *   folder includes <text> / folder does not include <text>
  *   description includes <text>
  *   <date-field> <operator> <value>  (e.g., starts before tomorrow, due after 2026-07-10)
- *   sort by <due|scheduled|start|created|priority> [reverse]
+ *   sort by <due|scheduled|start|created|priority> [reverse]  (repeatable; as
+ *     in Tasks, each later line orders the tasks that tie on the earlier ones)
  *   group by <status|priority|due|…|tags|folder|filename> [reverse]
  *
  * Any other line — including valid-but-unsupported Tasks instructions like
@@ -48,8 +49,11 @@ import {
 export interface BoardQuery {
   /** Filter instructions; tags are OR-ed together, description is AND-ed. */
   filters: FilterInstruction[];
-  /** Ordering, reusing the same {@link SortState} the sort bar produces. */
-  sort: SortState;
+  /**
+   * Sort keys in query order; empty means no sorting. The sort bar shows and
+   * edits the first key, reusing the same {@link SortState}.
+   */
+  sort: SortState[];
   /** Swimlane grouping, reusing the {@link GroupState} the group bar produces. */
   group: GroupState;
 }
@@ -72,7 +76,7 @@ export type FilterInstruction =
 /** An empty query: no filters, no sorting, no grouping. */
 export const EMPTY_QUERY: BoardQuery = {
   filters: [],
-  sort: { ...DEFAULT_SORT_STATE },
+  sort: [],
   group: { ...DEFAULT_GROUP_STATE },
 };
 
@@ -137,7 +141,7 @@ export function parseQuery(input: string): {
   warnings: string[];
 } {
   const filters: FilterInstruction[] = [];
-  let sort: SortState = { ...DEFAULT_SORT_STATE };
+  const sort: SortState[] = [];
   let group: GroupState = { ...DEFAULT_GROUP_STATE };
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -158,7 +162,7 @@ export function parseQuery(input: string): {
       warnings.push(`Line ${index + 1}: ${result.warning}`);
     }
     if (result.sort) {
-      sort = result.sort;
+      sort.push(result.sort);
       return;
     }
     if (result.group) {
@@ -281,17 +285,19 @@ function buildFieldFilter(
 
 /**
  * Serialize a {@link BoardQuery} back to a canonical, one-instruction-per-line
- * string in reference-exact Tasks syntax. Filters are emitted in array order; a
- * non-default sort is emitted last. `parseQuery(serializeQuery(q))` yields an
+ * string in reference-exact Tasks syntax. Filters are emitted in array order,
+ * then the sort keys in order. `parseQuery(serializeQuery(q))` yields an
  * equivalent query.
  */
 export function serializeQuery(query: BoardQuery): string {
   const lines = query.filters.map(serializeFilter);
 
-  const sortKeyword = SORT_FIELD_TO_KEYWORD[query.sort.field];
-  if (sortKeyword) {
-    const reverse = query.sort.direction === "desc" ? " reverse" : "";
-    lines.push(`sort by ${sortKeyword}${reverse}`);
+  for (const key of query.sort) {
+    const sortKeyword = SORT_FIELD_TO_KEYWORD[key.field];
+    if (sortKeyword) {
+      const reverse = key.direction === "desc" ? " reverse" : "";
+      lines.push(`sort by ${sortKeyword}${reverse}`);
+    }
   }
 
   const groupKeyword = GROUP_FIELD_TO_KEYWORD[query.group.field];
@@ -321,12 +327,9 @@ function serializeFilter(filter: FilterInstruction): string {
   }
 }
 
-/** Whether a sort state is the default (no explicit `sort by`). */
-export function isDefaultSort(sort: SortState): boolean {
-  return (
-    sort.field === DEFAULT_SORT_STATE.field &&
-    sort.direction === DEFAULT_SORT_STATE.direction
-  );
+/** Whether a sort is the default (no explicit `sort by`). */
+export function isDefaultSort(sort: SortState[]): boolean {
+  return sort.length === 0;
 }
 
 /** Whether a group state is the default (no explicit `group by`). */
@@ -342,6 +345,7 @@ export function isDefaultGroup(group: GroupState): boolean {
  * (base first), so the merge reads exactly like typing the base lines followed
  * by the overlay lines — tags stay OR-ed, descriptions AND-ed. The overlay's
  * sort/group each win unless default, in which case the base value applies.
+ * The overlay's sort keys replace the base keys as a whole.
  */
 export function mergeQueries(
   base: BoardQuery,
@@ -555,14 +559,24 @@ export function withExcludedTags(
   return { ...query, filters };
 }
 
-/** The sort slice. */
+/** The sort slice the sort bar shows: the first sort key. */
 export function getSort(query: BoardQuery): SortState {
-  return query.sort;
+  return query.sort[0] ?? { ...DEFAULT_SORT_STATE };
 }
 
-/** Replace the sort slice; filters are preserved. */
+/**
+ * Replace the first sort key; filters and the later keys are preserved, except
+ * a later key on the same field, which the new first key makes redundant.
+ * `'none'` clears every key, so "No sorting" in the bar means no sorting.
+ */
 export function withSort(query: BoardQuery, sort: SortState): BoardQuery {
-  return { ...query, sort: { ...sort } };
+  if (sort.field === "none") {
+    return { ...query, sort: [] };
+  }
+  const laterKeys = query.sort
+    .slice(1)
+    .filter((key) => key.field !== sort.field);
+  return { ...query, sort: [{ ...sort }, ...laterKeys] };
 }
 
 /** The group slice. */
