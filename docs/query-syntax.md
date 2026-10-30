@@ -17,6 +17,38 @@ Each instruction should be on its own line. Blank lines are ignored.
 | `folder includes <text>` | Show tasks whose containing folder contains the text (case-insensitive; folder only, no file name) | `folder includes 5-Areas/` |
 | `folder does not include <text>` | Hide tasks whose containing folder contains the text | `folder does not include 6-Archive` |
 | `description includes <text>` | Show tasks whose description contains the text (case-insensitive) | `description includes write tests` |
+| `<date> before\|after\|on <date>` | Show tasks whose date is before, after or on the given date | `due before tomorrow` |
+| `<date> <relative date>` | Show tasks whose date is `today`, `tomorrow` or `yesterday` | `due today` |
+| `<date> in <period>` | Show tasks whose date falls in the period | `scheduled in this week` |
+| `has <date> date` / `no <date> date` | Show tasks that have, or don't have, the date | `no due date` |
+
+#### Date filters
+
+`<date>` is one of `due`, `scheduled`, `start` (or `starts`), `created`, `done` and `cancelled`.
+
+Dates can be absolute (`2026-07-10`) or relative: `today`, `tomorrow`, `yesterday`. Periods are `this week`, `next week`, `last week`, `this month`, `next month`, `last month` and `this year`; the `in` is optional (`due this week`).
+
+| Goal | Instruction |
+|------|-------------|
+| Overdue | `due before today` |
+| Due today | `due today` |
+| Overdue or due today | `due before tomorrow` |
+| Due in the future | `due after today` |
+| Without a due date | `no due date` |
+
+#### Combining filters
+
+Several filters can go on one line, joined with Boolean operators, as in [Tasks](https://publish.obsidian.md/tasks/Queries/Combining+Filters). Wrap each filter in delimiters, then join them with `AND`, `OR`, `XOR`, `NOT`, `AND NOT` or `OR NOT`:
+
+```
+(due before tomorrow) OR (no due date)
+```
+
+- Operators must be capitalised.
+- Delimiters can be `( )`, `[ ]`, `{ }` or `" "`. Use the same type throughout a line. Pick another type if a filter contains the delimiter itself: `[description includes (maybe)] OR [due today]`.
+- Operators apply in this order: `NOT`, `XOR`, `AND`, `OR`. Nest delimiters to group: `((due today) OR (no due date)) AND NOT (tag includes #someday)`.
+- Any filter above can be combined. `sort by` and `group by` cannot.
+- Each filter in a Boolean line matches on its own, so `(tag includes #a) AND (tag includes #b)` requires both tags.
 
 > [!NOTE]
 > The older negation spelling `tag not includes`, `path not includes`, and `folder not includes` still works but is **deprecated** and will show a warning; it will be removed in a future version. Use `does not include` instead.
@@ -99,6 +131,17 @@ tag includes #project
 description includes urgent
 ```
 
+### Overdue, due today, or without a due date
+```
+(due before tomorrow) OR (no due date)
+```
+
+### Work tasks due this week, except someday ones
+```
+tag includes #work
+(due this week) AND NOT (tag includes #someday)
+```
+
 ### Sort tasks
 ```
 sort by due
@@ -137,6 +180,7 @@ group by priority
 - Multiple `tag includes` instructions are OR-ed together (a task matches if it has any of the tags)
 - Multiple `path includes` (or `folder includes`) instructions are OR-ed together; negations and different filter kinds are AND-ed together
 - Multiple `description includes` instructions are AND-ed together (a task must match all descriptions)
+- Date filters and Boolean lines are AND-ed with every other line
 - Sort instructions are applied after filtering; grouping is applied last
 - Multiple `sort by` instructions all apply, in order; the sort bar shows and changes the first one
 - Only the last `group by` instruction is used if multiple are provided
@@ -148,10 +192,8 @@ The following Tasks query instructions are **not** supported and will be reporte
 
 - `filename includes` / `filename does not include`
 - `priority is <value>` (use `sort by priority` for sorting)
-- `due on` / `due before` / `due after` (date filtering)
-- `scheduled on` / `scheduled before` / `scheduled after`
-- `start on` / `start before` / `start after`
-- `created on` / `created before` / `created after`
+- Date ranges (`due in 2026-07-01 2026-07-10`) and relative dates beyond those listed above (e.g. `due before in two weeks`)
+- `happens` date filters
 - `done` / `not done`
 - `recurring` / `not recurring`
 - `group by <date field>` (e.g. `group by due`) — date grouping scatters the board; only `status`, `priority`, `tags`, `path`, `folder`, `filename` are supported

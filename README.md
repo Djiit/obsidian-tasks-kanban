@@ -68,6 +68,8 @@ The board supports a subset of Tasks query syntax. For complete documentation, s
 - `path includes <text>` / `folder includes <text>` — show tasks whose source file path or folder contains the text
 - `… does not include …` — negate any of the above (e.g., `folder does not include Templates`)
 - `description includes <text>` — show tasks whose description contains the text
+- `due before tomorrow`, `scheduled this week`, `no due date`, … — filter by date (`due`, `scheduled`, `start`, `created`, `done`, `cancelled`)
+- `(due before tomorrow) OR (no due date)` — combine filters with `AND`, `OR`, `XOR` and `NOT`, as in Tasks
 
 **Sorting:**
 - `sort by <field>` / `sort by <field> reverse`

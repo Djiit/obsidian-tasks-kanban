@@ -365,16 +365,23 @@ describe("serializeDateFilter", () => {
     expect(serializeDateFilter(filter)).toBe("start before tomorrow");
   });
 
-  it("serializes 'has' operator filters", () => {
+  it("serializes 'has' operator filters in Tasks word order", () => {
     const filter = parseDateFilter("has start date");
     expect(filter).not.toBeNull();
-    expect(serializeDateFilter(filter!)).toBe("start has date");
+    expect(serializeDateFilter(filter!)).toBe("has start date");
   });
 
-  it("serializes 'no' operator filters", () => {
+  it("serializes 'no' operator filters in Tasks word order", () => {
     const filter = parseDateFilter("no due date");
     expect(filter).not.toBeNull();
-    expect(serializeDateFilter(filter!)).toBe("due no date");
+    expect(serializeDateFilter(filter!)).toBe("no due date");
+  });
+
+  it("round-trips 'has' and 'no' filters through serialization", () => {
+    for (const line of ["has due date", "no scheduled date", "has start"]) {
+      const filter = parseDateFilter(line);
+      expect(parseDateFilter(serializeDateFilter(filter!))).toEqual(filter);
+    }
   });
 
   it("serializes implicit relative dates without expanding the operator", () => {
