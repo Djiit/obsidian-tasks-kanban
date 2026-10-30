@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.12.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.11.0...0.12.0) (2026-10-30)
+
+
+### Features
+
+* apply multiple sort by lines in order, as in Tasks ([6ff886b](https://github.com/Djiit/obsidian-tasks-kanban/commit/6ff886bc9e9f1d0c92b546aa7e5fa2cda8bb5509))
+* apply multiple sort by lines in order, as in Tasks ([d217675](https://github.com/Djiit/obsidian-tasks-kanban/commit/d217675172da8512e7f958ab731e391fa96a1ca8))
+* **query:** combine board filters with Boolean operators ([31324cb](https://github.com/Djiit/obsidian-tasks-kanban/commit/31324cb9fa683ba368a143deb87b45396b58589e))
+* **query:** combine board filters with Boolean operators ([fd5d0f3](https://github.com/Djiit/obsidian-tasks-kanban/commit/fd5d0f37d715bad4110d860e90925152eb213323))
+* render card descriptions as Markdown ([daf7c58](https://github.com/Djiit/obsidian-tasks-kanban/commit/daf7c5843f32112795f6621443a2ade797e35087))
+* render card descriptions as Markdown ([eb81747](https://github.com/Djiit/obsidian-tasks-kanban/commit/eb8174795229003ae1d45c4b4870f882b1d1d41b))
+
+
+### Bug Fixes
+
+* **board:** read task dates in the local timezone ([851b0cd](https://github.com/Djiit/obsidian-tasks-kanban/commit/851b0cd942e41e8bc5a880de753bd3ce2d071ed8))
+* **board:** read task dates in the local timezone ([712c9ce](https://github.com/Djiit/obsidian-tasks-kanban/commit/712c9ce92bf4a43c96ca5670671584812cbd77cb))
+* **dev:** restore test-vault main.js symlink on build ([3972a01](https://github.com/Djiit/obsidian-tasks-kanban/commit/3972a01d15232635f4851254eec07fa6e067691f))
+* **dev:** restore test-vault main.js symlink on build ([6ecdb52](https://github.com/Djiit/obsidian-tasks-kanban/commit/6ecdb52b8f9d676f522633f607b6a45128e0ad62))
+
 ## [0.11.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.5...0.11.0) (2026-09-27)
 
 
