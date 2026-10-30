@@ -72,6 +72,8 @@ export class KanbanCard {
       }
     }
 
+    this.renderEditButton(headerEl);
+
     // Content: description
     const fullTitle = stripTags(this.task.description, this.task.tags);
     const descEl = this.container.createDiv({
@@ -95,6 +97,30 @@ export class KanbanCard {
       this.openSourceFile();
     };
     this.container.addEventListener("click", this.clickHandler);
+  }
+
+  /**
+   * Render the edit button: the 📝 that Tasks shows next to each task in its
+   * query results, which opens Tasks' "Create or edit task" modal. It shows
+   * while the card is hovered and is left out when the installed Tasks
+   * version doesn't offer that modal.
+   */
+  private renderEditButton(headerEl: HTMLElement) {
+    if (!this.tasksIntegration.getEditTaskLineModal()) {
+      return;
+    }
+
+    const button = headerEl.createEl("button", {
+      cls: "tasks-kanban-card-edit",
+      attr: { type: "button", "aria-label": "Edit task" },
+    });
+    // Obsidian's icon-button look instead of its default button styling.
+    button.addClass("clickable-icon");
+    button.addEventListener("click", (event: MouseEvent) => {
+      // Keep the card's own click handler from opening the source file.
+      event.stopPropagation();
+      void this.tasksIntegration.taskUpdater.editTask(this.task);
+    });
   }
 
   /**

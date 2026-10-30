@@ -20,18 +20,21 @@ const TASK: Task = {
   originalMarkdown: "- [ ] A todo task",
 };
 
-function mockIntegration(file: unknown) {
+function mockIntegration(file: unknown, editTaskLineModal: unknown = vi.fn()) {
   const openFile = vi.fn().mockResolvedValue(undefined);
   const getLeaf = vi.fn().mockReturnValue({ openFile });
   const getFileByPath = vi.fn().mockReturnValue(file);
+  const editTask = vi.fn().mockResolvedValue(true);
   const integration = {
     getTasks: vi.fn().mockReturnValue([]),
+    getEditTaskLineModal: vi.fn().mockReturnValue(editTaskLineModal),
+    taskUpdater: { editTask },
     app: {
       vault: { getFileByPath },
       workspace: { getLeaf },
     },
   };
-  return { integration: integration as any, openFile, getFileByPath };
+  return { integration: integration as any, openFile, getFileByPath, editTask };
 }
 
 describe("KanbanCard", () => {
@@ -58,6 +61,31 @@ describe("KanbanCard", () => {
     container.click();
 
     expect(openFile).not.toHaveBeenCalled();
+    card.destroy();
+  });
+
+  it("edits the task in the Tasks modal without opening the source file", () => {
+    const { integration, openFile, editTask } = mockIntegration({
+      path: "notes.md",
+    });
+    const container = document.createElement("div");
+    const card = new KanbanCard(container, TASK, integration);
+    card.render();
+
+    container.querySelector<HTMLElement>(".tasks-kanban-card-edit")?.click();
+
+    expect(editTask).toHaveBeenCalledWith(TASK);
+    expect(openFile).not.toHaveBeenCalled();
+    card.destroy();
+  });
+
+  it("shows no edit button when Tasks offers no edit modal", () => {
+    const { integration } = mockIntegration({ path: "notes.md" }, null);
+    const container = document.createElement("div");
+    const card = new KanbanCard(container, TASK, integration);
+    card.render();
+
+    expect(container.querySelector(".tasks-kanban-card-edit")).toBeNull();
     card.destroy();
   });
 });
