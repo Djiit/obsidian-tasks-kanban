@@ -48,7 +48,7 @@ describe("parseQuery", () => {
   it("returns empty query for blank input", () => {
     const { query, errors } = parseQuery("");
     expect(query.filters).toEqual([]);
-    expect(query.sort).toEqual(DEFAULT_SORT_STATE);
+    expect(query.sort).toEqual([]);
     expect(errors).toEqual([]);
   });
 
@@ -67,12 +67,68 @@ describe("parseQuery", () => {
     expect(errors).toEqual([]);
   });
 
-  it('parses "tag not includes" and strips the leading #', () => {
-    const { query, errors } = parseQuery(
+  it('parses "tag does not include" and strips the leading #', () => {
+    const { query, errors, warnings } = parseQuery(
+      "tag does not include #book\ntag does not include movie",
+    );
+    expect(getExcludedTags(query)).toEqual(["book", "movie"]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('parses legacy "tag not includes" but warns about deprecation', () => {
+    const { query, errors, warnings } = parseQuery(
       "tag not includes #book\ntag not includes movie",
     );
     expect(getExcludedTags(query)).toEqual(["book", "movie"]);
     expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("Line 1");
+    expect(warnings[0]).toContain("deprecated");
+    expect(warnings[0]).toContain("does not include");
+  });
+
+  it('parses "path includes" and "path does not include"', () => {
+    const { query, errors, warnings } = parseQuery(
+      "path includes 4-Projects\npath does not include Archive",
+    );
+    expect(query.filters).toEqual([
+      { kind: "path", value: "4-Projects" },
+      { kind: "path", value: "Archive", negated: true },
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('parses "folder includes" and "folder does not include"', () => {
+    const { query, errors, warnings } = parseQuery(
+      "folder includes 5-Areas/\nfolder does not include Templates",
+    );
+    expect(query.filters).toEqual([
+      { kind: "folder", value: "5-Areas/" },
+      { kind: "folder", value: "Templates", negated: true },
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('parses legacy "path not includes" and "folder not includes" with warnings', () => {
+    const { query, errors, warnings } = parseQuery(
+      "path not includes Archive\nfolder not includes Templates",
+    );
+    expect(query.filters).toEqual([
+      { kind: "path", value: "Archive", negated: true },
+      { kind: "folder", value: "Templates", negated: true },
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("Line 1");
+    expect(warnings[1]).toContain("Line 2");
+  });
+
+  it("flags an empty path or folder value as an error", () => {
+    expect(parseQuery("path includes").errors).toHaveLength(1);
+    expect(parseQuery("folder does not include   ").errors).toHaveLength(1);
   });
 
   it('parses "description includes"', () => {
@@ -83,22 +139,31 @@ describe("parseQuery", () => {
   });
 
   it("parses sort with and without reverse", () => {
-    expect(parseQuery("sort by priority").query.sort).toEqual({
-      field: "priority",
-      direction: "asc",
-    });
-    expect(parseQuery("sort by due reverse").query.sort).toEqual({
-      field: "dueDate",
-      direction: "desc",
-    });
+    expect(parseQuery("sort by priority").query.sort).toEqual([
+      { field: "priority", direction: "asc" },
+    ]);
+    expect(parseQuery("sort by due reverse").query.sort).toEqual([
+      { field: "dueDate", direction: "desc" },
+    ]);
   });
 
   it("maps each sort keyword to its field", () => {
-    expect(parseQuery("sort by scheduled").query.sort.field).toBe(
+    expect(parseQuery("sort by scheduled").query.sort[0].field).toBe(
       "scheduledDate",
     );
-    expect(parseQuery("sort by start").query.sort.field).toBe("startDate");
-    expect(parseQuery("sort by created").query.sort.field).toBe("createdDate");
+    expect(parseQuery("sort by start").query.sort[0].field).toBe("startDate");
+    expect(parseQuery("sort by created").query.sort[0].field).toBe(
+      "createdDate",
+    );
+  });
+
+  it("keeps every sort line as a key, in query order", () => {
+    expect(
+      parseQuery("sort by priority\nsort by created reverse").query.sort,
+    ).toEqual([
+      { field: "priority", direction: "asc" },
+      { field: "createdDate", direction: "desc" },
+    ]);
   });
 
   describe("date filters", () => {
@@ -217,6 +282,80 @@ describe("parseQuery", () => {
     });
   });
 
+  describe("Boolean instructions", () => {
+    it("parses a line combining filters with OR", () => {
+      const { query, errors } = parseQuery(
+        "(due before tomorrow) OR (no due date)",
+      );
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "boolean",
+        expr: {
+          op: "or",
+          left: {
+            op: "leaf",
+            filter: { kind: "date", field: "dueDate", operator: "before" },
+          },
+          right: {
+            op: "leaf",
+            filter: { kind: "date", field: "dueDate", operator: "no" },
+          },
+        },
+      });
+    });
+
+    it("accepts any supported filter as an operand", () => {
+      const { query, errors } = parseQuery(
+        "[tag includes #work] AND NOT [folder includes Archive] OR [description includes (urgent)]",
+      );
+      expect(errors).toEqual([]);
+      expect(query.filters[0].kind).toBe("boolean");
+    });
+
+    it("collects deprecation warnings from operands", () => {
+      const { errors, warnings } = parseQuery(
+        "(tag not includes #book) OR (no due date)",
+      );
+      expect(errors).toEqual([]);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("Line 1");
+      expect(warnings[0]).toContain("deprecated");
+    });
+
+    it("reports an unsupported operand and skips the line", () => {
+      const { query, errors } = parseQuery(
+        "tag includes #work\n(priority is high) OR (no due date)",
+      );
+      expect(getTags(query)).toEqual(["work"]);
+      expect(query.filters).toHaveLength(1);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Line 2");
+      expect(errors[0]).toContain('"priority is high"');
+    });
+
+    it("rejects sort and group instructions as operands", () => {
+      for (const line of [
+        "(sort by due) OR (no due date)",
+        "(group by status) OR (no due date)",
+      ]) {
+        const { query, errors } = parseQuery(line);
+        expect(query.filters).toEqual([]);
+        expect(query.sort).toEqual([]);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("only filters");
+      }
+    });
+
+    it("reports malformed Boolean syntax", () => {
+      const { query, errors } = parseQuery("(no due date) or (due today)");
+      expect(query.filters).toEqual([]);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Line 1");
+      expect(errors[0]).toContain('use "OR"');
+    });
+  });
+
   describe("tolerant errors on unsupported lines", () => {
     it("flags a bare # tag (no shorthand) and skips it", () => {
       const { query, errors } = parseQuery("#work");
@@ -228,7 +367,7 @@ describe("parseQuery", () => {
 
     it("flags valid-but-unsupported Tasks instructions", () => {
       for (const line of [
-        "path includes Projects",
+        "filename includes Projects",
         "priority is high",
         "done",
         "status.type is TODO",
@@ -252,10 +391,10 @@ describe("parseQuery", () => {
 
     it("keeps valid lines while collecting errors for bad ones", () => {
       const { query, errors } = parseQuery(
-        "tag includes #work\npath includes X\nsort by due",
+        "tag includes #work\npriority is high\nsort by due",
       );
       expect(getTags(query)).toEqual(["work"]);
-      expect(query.sort.field).toBe("dueDate");
+      expect(query.sort[0].field).toBe("dueDate");
       expect(errors).toHaveLength(1);
       expect(errors[0]).toContain("Line 2");
     });
@@ -268,9 +407,35 @@ describe("serializeQuery / round-trip", () => {
     expect(serializeQuery(query)).toBe("tag includes #work");
   });
 
-  it('serializes "tag not includes" in reference-exact form', () => {
+  it('serializes negated tags in reference-exact "does not include" form', () => {
+    const { query } = parseQuery("tag does not include #book");
+    expect(serializeQuery(query)).toBe("tag does not include #book");
+  });
+
+  it("normalizes legacy negation spelling on serialize", () => {
     const { query } = parseQuery("tag not includes #book");
-    expect(serializeQuery(query)).toBe("tag not includes #book");
+    expect(serializeQuery(query)).toBe("tag does not include #book");
+    // The normalized form re-parses without warnings.
+    const second = parseQuery(serializeQuery(query));
+    expect(second.warnings).toEqual([]);
+    expect(second.query).toEqual(query);
+  });
+
+  it("serializes path and folder filters", () => {
+    const { query } = parseQuery(
+      "path includes 4-Projects\npath does not include Archive\nfolder includes 5-Areas/",
+    );
+    expect(serializeQuery(query)).toBe(
+      "path includes 4-Projects\npath does not include Archive\nfolder includes 5-Areas/",
+    );
+  });
+
+  it("round-trips a query with path and folder filters", () => {
+    const source =
+      "path includes 4-Projects\nfolder does not include Templates\nsort by due";
+    const first = parseQuery(source).query;
+    const second = parseQuery(serializeQuery(first)).query;
+    expect(second).toEqual(first);
   });
 
   it("serializes a mixed query deterministically", () => {
@@ -287,13 +452,18 @@ describe("serializeQuery / round-trip", () => {
       "tag includes #work\ntag not includes #book\nsort by due",
     );
     expect(serializeQuery(query)).toBe(
-      "tag includes #work\ntag not includes #book\nsort by due",
+      "tag includes #work\ntag does not include #book\nsort by due",
     );
   });
 
   it("serializes date filters", () => {
     const { query } = parseQuery("starts before tomorrow");
     expect(serializeQuery(query)).toBe("starts before tomorrow");
+  });
+
+  it('serializes "has" and "no" date filters as written in Tasks', () => {
+    const source = "has due date\nno scheduled date";
+    expect(serializeQuery(parseQuery(source).query)).toBe(source);
   });
 
   it("serializes mixed filters including date filters", () => {
@@ -303,6 +473,12 @@ describe("serializeQuery / round-trip", () => {
     expect(serializeQuery(query)).toBe(
       "tag includes #work\nstarts before tomorrow\nsort by due",
     );
+  });
+
+  it("serializes every sort key in order", () => {
+    const source =
+      "tag includes #work\nsort by priority\nsort by created reverse";
+    expect(serializeQuery(parseQuery(source).query)).toBe(source);
   });
 
   it("omits the sort line when there is no sorting", () => {
@@ -332,6 +508,81 @@ describe("serializeQuery / round-trip", () => {
     const second = parseQuery(serializeQuery(first)).query;
     expect(second).toEqual(first);
   });
+
+  it("serializes Boolean instructions in canonical form", () => {
+    const { query } = parseQuery(
+      "tag includes #work\n[due before tomorrow]   OR [no due date]\nsort by due",
+    );
+    expect(serializeQuery(query)).toBe(
+      "tag includes #work\n(due before tomorrow) OR (no due date)\nsort by due",
+    );
+  });
+
+  it("serializes NOT unwrapped and nested groups with parentheses", () => {
+    const { query } = parseQuery(
+      "NOT (tag includes #someday) AND ((due today) OR (no due date))",
+    );
+    expect(serializeQuery(query)).toBe(
+      "NOT (tag includes #someday) AND ((due today) OR (no due date))",
+    );
+  });
+
+  it("serializes AND NOT and chained operators without extra parentheses", () => {
+    const source =
+      "(due today) OR (no due date) OR (due before today) AND NOT (tag includes #someday)";
+    expect(serializeQuery(parseQuery(source).query)).toBe(
+      "(due today) OR (no due date) OR ((due before today) AND NOT (tag includes #someday))",
+    );
+  });
+
+  it("normalizes legacy spellings inside Boolean operands", () => {
+    const { query } = parseQuery("(tag not includes #book) OR (due today)");
+    expect(serializeQuery(query)).toBe(
+      "(tag does not include #book) OR (due today)",
+    );
+  });
+
+  it("switches delimiters when an operand contains parentheses", () => {
+    const source =
+      "(description includes (maybe)) OR (description includes later)";
+    const { query, errors } = parseQuery(source);
+    expect(errors).toEqual([]);
+    const serialized = serializeQuery(query);
+    expect(serialized).toBe(
+      "[description includes (maybe)] OR [description includes later]",
+    );
+    expect(parseQuery(serialized).query).toEqual(query);
+  });
+
+  it("round-trips Boolean instructions whose operands contain every delimiter", () => {
+    for (const source of [
+      "[[description includes :)] OR [description includes [x]]] AND [description includes {y}]",
+      '"description includes (" OR "description includes [" AND "description includes {"',
+      'NOT "description includes (" XOR "description includes [{"',
+    ]) {
+      const first = parseQuery(source);
+      expect(first.errors).toEqual([]);
+      const second = parseQuery(serializeQuery(first.query));
+      expect(second.errors).toEqual([]);
+      expect(second.query).toEqual(first.query);
+    }
+  });
+
+  it("round-trips Boolean instructions", () => {
+    for (const source of [
+      "(due before tomorrow) OR (no due date)",
+      "(due today) XOR (scheduled today)",
+      "NOT (tag includes #someday)",
+      "(tag includes #a) OR (tag includes #b) AND (description includes x)",
+      "((due before tomorrow) OR (no due date)) AND NOT (folder includes Archive)",
+    ]) {
+      const first = parseQuery(source);
+      expect(first.errors).toEqual([]);
+      const second = parseQuery(serializeQuery(first.query));
+      expect(second.errors).toEqual([]);
+      expect(second.query).toEqual(first.query);
+    }
+  });
 });
 
 describe("slice helpers", () => {
@@ -346,11 +597,21 @@ describe("slice helpers", () => {
     expect(getSort(q)).toEqual({ field: "dueDate", direction: "desc" });
   });
 
+  it("getSort reads the first sort key", () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    expect(getSort(q)).toEqual({ field: "priority", direction: "asc" });
+  });
+
+  it("getSort falls back to the default state without sort keys", () => {
+    const q = parseQuery("tag includes #work").query;
+    expect(getSort(q)).toEqual(DEFAULT_SORT_STATE);
+  });
+
   it("withTitle preserves tags and sort", () => {
     const updated = withTitle(base, "hello");
     expect(getTitle(updated)).toBe("hello");
     expect(getTags(updated)).toEqual(["work"]);
-    expect(updated.sort.field).toBe("priority");
+    expect(getSort(updated).field).toBe("priority");
   });
 
   it("withTitle removes the description filter when cleared", () => {
@@ -411,8 +672,29 @@ describe("slice helpers", () => {
 
   it("withSort preserves filters", () => {
     const updated = withSort(base, { field: "dueDate", direction: "desc" });
-    expect(updated.sort).toEqual({ field: "dueDate", direction: "desc" });
+    expect(updated.sort).toEqual([{ field: "dueDate", direction: "desc" }]);
     expect(updated.filters).toEqual(base.filters);
+  });
+
+  it("withSort replaces the first key and keeps the later keys", () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    const updated = withSort(q, { field: "dueDate", direction: "asc" });
+    expect(updated.sort).toEqual([
+      { field: "dueDate", direction: "asc" },
+      { field: "createdDate", direction: "desc" },
+    ]);
+  });
+
+  it("withSort drops a later key on the new first key's field", () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    const updated = withSort(q, { field: "createdDate", direction: "asc" });
+    expect(updated.sort).toEqual([{ field: "createdDate", direction: "asc" }]);
+  });
+
+  it('withSort clears every key for "none"', () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    const updated = withSort(q, { field: "none", direction: "desc" });
+    expect(updated.sort).toEqual([]);
   });
 });
 
@@ -421,7 +703,7 @@ describe("applyBoardQuery", () => {
     const tasks = [createTask()];
     const result = applyBoardQuery(tasks, {
       filters: [],
-      sort: { ...DEFAULT_SORT_STATE },
+      sort: [],
     });
     expect(result).not.toBe(tasks);
     expect(result).toHaveLength(1);
@@ -534,6 +816,117 @@ describe("applyBoardQuery", () => {
       "tag not includes #book\ndescription includes Read",
     );
     expect(ids(applyBoardQuery(tasks, query))).toEqual(["b"]);
+  });
+
+  describe("path and folder filters", () => {
+    const tasks = [
+      createTask({
+        id: "project",
+        taskLocation: { path: "4-Projects/alpha/note.md", lineNumber: 1 },
+      }),
+      createTask({
+        id: "area",
+        taskLocation: { path: "5-Areas/inbox.md", lineNumber: 1 },
+      }),
+      createTask({
+        id: "archive",
+        taskLocation: { path: "6-Archive/old.md", lineNumber: 1 },
+      }),
+      createTask({
+        id: "root",
+        taskLocation: { path: "4-Projects.md", lineNumber: 1 },
+      }),
+    ];
+
+    it("matches path includes case-insensitively as a substring", () => {
+      const { query } = parseQuery("path includes 4-projects");
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project", "root"]);
+    });
+
+    it("ORs multiple path includes (the issue's use case)", () => {
+      const { query } = parseQuery(
+        "path includes 4-Projects\npath includes 5-Areas/",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "project",
+        "area",
+        "root",
+      ]);
+    });
+
+    it("folder includes matches the folder portion only", () => {
+      const { query } = parseQuery("folder includes 4-Projects");
+      // root file "4-Projects.md" lives in "/" and must not match
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project"]);
+    });
+
+    it("excludes tasks matching a path does not include filter", () => {
+      const { query } = parseQuery("path does not include Archive");
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "project",
+        "area",
+        "root",
+      ]);
+    });
+
+    it("excludes tasks matching any negated path (AND of exclusions)", () => {
+      const { query } = parseQuery(
+        "path does not include Archive\npath does not include 5-Areas",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project", "root"]);
+    });
+
+    it("ANDs path and folder filters together", () => {
+      const { query } = parseQuery(
+        "path includes 4-Projects\nfolder does not include 6-Archive",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["project", "root"]);
+    });
+
+    it("ANDs path filters with tag and description filters", () => {
+      const mixed = [
+        createTask({
+          id: "keep",
+          tags: ["work"],
+          description: "Write docs",
+          taskLocation: { path: "4-Projects/a.md", lineNumber: 1 },
+        }),
+        createTask({
+          id: "wrongPath",
+          tags: ["work"],
+          description: "Write docs",
+          taskLocation: { path: "9-Other/a.md", lineNumber: 1 },
+        }),
+        createTask({
+          id: "wrongDesc",
+          tags: ["work"],
+          description: "Fix bugs",
+          taskLocation: { path: "4-Projects/b.md", lineNumber: 1 },
+        }),
+      ];
+      const { query } = parseQuery(
+        "path includes 4-Projects\ntag includes #work\ndescription includes write",
+      );
+      expect(ids(applyBoardQuery(mixed, query))).toEqual(["keep"]);
+    });
+
+    it("drops tasks without a location on positive filters, keeps them on negated", () => {
+      const noLocation = createTask({
+        id: "noLocation",
+        taskLocation: undefined as unknown as Task["taskLocation"],
+      });
+      const included = applyBoardQuery(
+        [noLocation],
+        parseQuery("path includes anything").query,
+      );
+      expect(included).toEqual([]);
+
+      const excluded = applyBoardQuery(
+        [noLocation],
+        parseQuery("path does not include anything").query,
+      );
+      expect(ids(excluded)).toEqual(["noLocation"]);
+    });
   });
 
   describe("date filters", () => {
@@ -657,21 +1050,85 @@ describe("applyBoardQuery", () => {
       expect(result).not.toContainEqual(tasks[2]);
     });
   });
+
+  describe("Boolean instructions", () => {
+    const offset = (days: number): string => {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return toLocalISODate(d);
+    };
+
+    const tasks = [
+      createTask({ id: "overdue", dueDate: offset(-3), tags: ["work"] }),
+      createTask({ id: "today", dueDate: offset(0), tags: ["home"] }),
+      createTask({ id: "future", dueDate: offset(5), tags: ["work"] }),
+      createTask({ id: "undated", dueDate: null, tags: ["home"] }),
+    ];
+
+    it("shows overdue, due-today and undated tasks", () => {
+      const { query } = parseQuery("(due before tomorrow) OR (no due date)");
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "overdue",
+        "today",
+        "undated",
+      ]);
+    });
+
+    it("ANDs a Boolean line with the other lines", () => {
+      const { query } = parseQuery(
+        "tag includes #home\n(due before tomorrow) OR (no due date)",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["today", "undated"]);
+    });
+
+    it("evaluates operand filters with their usual semantics", () => {
+      const { query } = parseQuery(
+        "(tag includes #work) AND NOT (due after today)",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["overdue"]);
+    });
+
+    it("evaluates NOT and XOR", () => {
+      expect(
+        ids(applyBoardQuery(tasks, parseQuery("NOT (has due date)").query)),
+      ).toEqual(["undated"]);
+      expect(
+        ids(
+          applyBoardQuery(
+            tasks,
+            parseQuery("(tag includes #work) XOR (due before tomorrow)").query,
+          ),
+        ),
+      ).toEqual(["today", "future"]);
+    });
+
+    it("ANDs several Boolean lines together", () => {
+      const { query } = parseQuery(
+        "(due before tomorrow) OR (no due date)\n(tag includes #work) OR (no due date)",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "overdue",
+        "undated",
+      ]);
+    });
+
+    it("merges Boolean lines from the base query", () => {
+      const base = parseQuery("(due before tomorrow) OR (no due date)").query;
+      const overlay = parseQuery("tag includes #work").query;
+      expect(ids(applyBoardQuery(tasks, mergeQueries(base, overlay)))).toEqual([
+        "overdue",
+      ]);
+    });
+  });
 });
 
 describe("isDefaultSort", () => {
-  it("is true for the default sort state", () => {
-    expect(isDefaultSort({ ...DEFAULT_SORT_STATE })).toBe(true);
+  it("is true without sort keys", () => {
+    expect(isDefaultSort([])).toBe(true);
   });
 
-  it("is false when the field differs", () => {
-    expect(isDefaultSort({ field: "dueDate", direction: "asc" })).toBe(false);
-  });
-
-  it("is false when the direction differs", () => {
-    expect(
-      isDefaultSort({ field: DEFAULT_SORT_STATE.field, direction: "desc" }),
-    ).toBe(false);
+  it("is false with a sort key", () => {
+    expect(isDefaultSort([{ field: "dueDate", direction: "asc" }])).toBe(false);
   });
 });
 

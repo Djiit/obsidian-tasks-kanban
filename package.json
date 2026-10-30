@@ -1,12 +1,16 @@
 {
   "name": "obsidian-tasks-kanban",
-  "version": "0.10.3",
+  "version": "0.11.0",
   "description": "Kanban board view for Obsidian Tasks",
   "main": "main.js",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
   "scripts": {
-    "dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
-    "build": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --minify",
-    "build:dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian",
+    "dev": "npm run symlink && esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --watch",
+    "build": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian --minify && npm run symlink",
+    "build:dev": "esbuild src/main.ts --bundle --outfile=main.js --format=cjs --platform=browser --target=es2020 --external:obsidian && npm run symlink",
     "dev:reload": "obsidian plugin:reload id=tasks-kanban",
     "dev:full": "npm run build:dev && npm run dev:reload",
     "test": "vitest run",
@@ -16,8 +20,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "prepare": "husky",
-    "postbuild": "mkdir -p test-vault/.obsidian/plugins/tasks-kanban && ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban/main.js",
-    "symlink": "ln -sf $(pwd)/main.js test-vault/.obsidian/plugins/tasks-kanban/main.js"
+    "symlink": "mkdir -p test-vault/.obsidian/plugins/tasks-kanban && cd test-vault/.obsidian/plugins/tasks-kanban && ln -sfn ../../../../main.js main.js && ln -sfn ../../../../manifest.json manifest.json && ln -sfn ../../../../styles.css styles.css"
   },
   "keywords": [
     "obsidian",
@@ -40,19 +43,18 @@
   "author": "Julien Tanay",
   "license": "MIT",
   "devDependencies": {
-    "@commitlint/cli": "^21.2.1",
-    "@commitlint/config-conventional": "^21.2.0",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.2",
     "@types/node": "^26.2.0",
-    "@typescript-eslint/parser": "^8.64.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.8.1",
-    "eslint-plugin-obsidianmd": "^0.4.1",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "husky": "^9.1.7",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.1",
     "nano-staged": "^1.0.2",
-    "prettier": "^3.8.4",
+    "prettier": "^3.9.8",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.1"
   },
   "dependencies": {
     "obsidian": "^1.13.1"
@@ -63,6 +65,7 @@
     }
   },
   "allowScripts": {
-    "esbuild@0.28.1": true
+    "esbuild@0.28.2": true,
+    "fsevents": false
   }
 }

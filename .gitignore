@@ -1,8 +1,12 @@
 # Dependencies
 node_modules/
 
-# Build output
-main.js
+# Build output (repo root only)
+/main.js
+
+# Generated test-vault plugin links (created by npm run symlink)
+test-vault/.obsidian/plugins/tasks-kanban/*
+!test-vault/.obsidian/plugins/tasks-kanban/data.json
 
 # IDE
 .idea/

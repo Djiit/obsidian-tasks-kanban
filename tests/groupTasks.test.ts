@@ -43,26 +43,35 @@ describe("groupTasks none", () => {
 });
 
 describe("groupTasks by priority", () => {
-  it("splits into lanes by priority label, ordered alphabetically", () => {
+  it("orders lanes by semantic priority with None last", () => {
     const tasks = [
-      createTask({ id: "hi", priority: 1 }), // High
-      createTask({ id: "lo", priority: 4 }), // Low
+      createTask({ id: "none", priority: null }),
+      createTask({ id: "lowest", priority: 5 }),
+      createTask({ id: "medium", priority: 2 }),
+      createTask({ id: "high", priority: 1 }),
+      createTask({ id: "low", priority: 4 }),
+      createTask({ id: "highest", priority: 0 }),
     ];
-    // High, Low — alphabetical
     expect(labels(tasks, state({ field: "priority" }))).toEqual([
+      "Highest",
       "High",
+      "Medium",
       "Low",
+      "Lowest",
+      "None",
     ]);
   });
 
-  it("reverse flips heading order", () => {
+  it("reverse flips semantic priority order while keeping None last", () => {
     const tasks = [
-      createTask({ id: "hi", priority: 1 }),
-      createTask({ id: "lo", priority: 4 }),
+      createTask({ id: "none", priority: null }),
+      createTask({ id: "highest", priority: 0 }),
+      createTask({ id: "medium", priority: 2 }),
+      createTask({ id: "lowest", priority: 5 }),
     ];
     expect(
       labels(tasks, state({ field: "priority", direction: "desc" })),
-    ).toEqual(["Low", "High"]);
+    ).toEqual(["Lowest", "Medium", "Highest", "None"]);
   });
 });
 

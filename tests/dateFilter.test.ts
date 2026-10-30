@@ -365,15 +365,71 @@ describe("serializeDateFilter", () => {
     expect(serializeDateFilter(filter)).toBe("start before tomorrow");
   });
 
-  it("serializes 'has' operator filters", () => {
+  it("serializes 'has' operator filters in Tasks word order", () => {
     const filter = parseDateFilter("has start date");
     expect(filter).not.toBeNull();
-    expect(serializeDateFilter(filter!)).toBe("start has date");
+    expect(serializeDateFilter(filter!)).toBe("has start date");
   });
 
-  it("serializes 'no' operator filters", () => {
+  it("serializes 'no' operator filters in Tasks word order", () => {
     const filter = parseDateFilter("no due date");
     expect(filter).not.toBeNull();
-    expect(serializeDateFilter(filter!)).toBe("due no date");
+    expect(serializeDateFilter(filter!)).toBe("no due date");
+  });
+
+  it("round-trips 'has' and 'no' filters through serialization", () => {
+    for (const line of ["has due date", "no scheduled date", "has start"]) {
+      const filter = parseDateFilter(line);
+      expect(parseDateFilter(serializeDateFilter(filter!))).toEqual(filter);
+    }
+  });
+
+  it("serializes implicit relative dates without expanding the operator", () => {
+    const today = parseDateFilter("due today");
+    expect(today).not.toBeNull();
+    expect(serializeDateFilter(today!)).toBe("due today");
+
+    const explicitToday = parseDateFilter("due on today");
+    expect(explicitToday).not.toBeNull();
+    expect(serializeDateFilter(explicitToday!)).toBe("due today");
+
+    const thisWeek = parseDateFilter("due this week");
+    expect(thisWeek).not.toBeNull();
+    expect(serializeDateFilter(thisWeek!)).toBe("due this week");
+  });
+});
+
+describe("normalizeDateString (Moment-like task dates)", () => {
+  const referenceDate = new Date("2026-07-10T12:00:00");
+
+  // The Tasks plugin emits Moment objects for date fields at runtime; Moment's
+  // toISOString() is UTC. In a UTC-positive timezone that shifts local dates
+  // back one day, so "due today" wrongly matched tomorrow's tasks (#102).
+  function createLocalDate(value: string): Date {
+    // Mimics Moment: local calendar date at midnight, but toISOString() in UTC.
+    return new Date(`${value}T00:00:00`);
+  }
+
+  it("matches a due-today task when 'due today' is filtered, in a UTC+ timezone", () => {
+    const filter = parseDateFilter("due today");
+    expect(filter).not.toBeNull();
+
+    const todayTask = createTask({ dueDate: createLocalDate("2026-07-10") });
+    const tomorrowTask = createTask({ dueDate: createLocalDate("2026-07-11") });
+
+    expect(matchesDateFilter(todayTask, filter!, referenceDate)).toBe(true);
+    expect(matchesDateFilter(tomorrowTask, filter!, referenceDate)).toBe(false);
+  });
+
+  it("normalizes a Moment-like local date to its local calendar date, not UTC", () => {
+    // Local midnight on 2026-07-11. UTC slicing can shift this back to
+    // 2026-07-10 in UTC-positive timezones; the local calendar date is
+    // what the user means.
+    const date = new Date(2026, 6, 11, 0, 0, 0);
+    const filter = parseDateFilter("due on 2026-07-11");
+    const task = createTask({ dueDate: date });
+
+    expect(filter).not.toBeNull();
+    expect(matchesDateFilter(task, filter!, referenceDate)).toBe(true);
   });
 });

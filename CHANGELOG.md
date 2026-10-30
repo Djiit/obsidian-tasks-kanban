@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.11.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.5...0.11.0) (2026-09-27)
+
+
+### Features
+
+* add path and folder query filters ([60310c4](https://github.com/Djiit/obsidian-tasks-kanban/commit/60310c4c7ee8b6e7ebd59dbb537e4eb7476e3747))
+* add path and folder query filters ([c947896](https://github.com/Djiit/obsidian-tasks-kanban/commit/c94789608ebac4d4c452448abfa282ef61cc2101)), closes [#75](https://github.com/Djiit/obsidian-tasks-kanban/issues/75)
+
+## [0.10.5](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.4...0.10.5) (2026-09-27)
+
+
+### Bug Fixes
+
+* expose custom column settings in the Obsidian 1.13 settings UI ([31950e2](https://github.com/Djiit/obsidian-tasks-kanban/commit/31950e2af410ed859554d71b39010c2662262b44))
+* install npm 12 explicitly in CI and mise ([30fb45e](https://github.com/Djiit/obsidian-tasks-kanban/commit/30fb45e8fdc608e86d0f2b25d1d6c37504ea3a67))
+* show custom column settings on Obsidian 1.13+ ([efac40f](https://github.com/Djiit/obsidian-tasks-kanban/commit/efac40f96e8b78d8b75ea5e2eb71aa0a953b8545))
+
+## [0.10.4](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.3...0.10.4) (2026-09-19)
+
+
+### Bug Fixes
+
+* order priority groups semantically ([11a2c48](https://github.com/Djiit/obsidian-tasks-kanban/commit/11a2c48fd702ad546b782b52156e634999330936))
+* order priority groups semantically ([d196543](https://github.com/Djiit/obsidian-tasks-kanban/commit/d196543ffd78a9c30a8c0c008505aedb14c12452))
+* scroll to task's line when opening its note from a card ([5f64f4f](https://github.com/Djiit/obsidian-tasks-kanban/commit/5f64f4fc94d81a3630313b1198c4d3926a4d770e))
+* scroll to task's line when opening its note from a card ([af0bdb3](https://github.com/Djiit/obsidian-tasks-kanban/commit/af0bdb30b6c18cd6028031c6f38f76c3c607e740)), closes [#74](https://github.com/Djiit/obsidian-tasks-kanban/issues/74)
+
 ## [0.10.3](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.10.2...0.10.3) (2026-08-10)
 
 

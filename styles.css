@@ -543,6 +543,12 @@
     line-height: 1.4;
     color: var(--text-normal);
     word-break: break-word;
+    /* Keep long descriptions from growing the card vertically. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
 }
 
 /* Card tags */
@@ -792,6 +798,15 @@
 
 .tasks-kanban-query-modal-error {
     color: var(--text-error);
+    font-size: var(--font-ui-smaller);
+}
+
+.tasks-kanban-query-modal-warnings {
+    margin-top: 4px;
+}
+
+.tasks-kanban-query-modal-warning {
+    color: var(--text-warning, #e0a832);
     font-size: var(--font-ui-smaller);
 }
 

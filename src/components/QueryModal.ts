@@ -20,6 +20,7 @@ export class QueryModal extends Modal {
 
   private textarea!: HTMLTextAreaElement;
   private errorEl!: HTMLElement;
+  private warningEl!: HTMLElement;
   private parsed: BoardQuery;
 
   constructor(
@@ -41,13 +42,14 @@ export class QueryModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "tasks-kanban-query-modal-help",
-      text: "One instruction per line. Supported: tag includes, tag not includes, description includes, sort by, and group by.",
+      text: "One instruction per line. Supported: tag/path/folder includes, tag/path/folder does not include, description includes, date filters (e.g., due before tomorrow), boolean combinations of filters, sort by, and group by.",
     });
 
     // Literal query syntax shown as an example; intentionally verbatim.
     const placeholder = [
       "tag includes #work",
       "description includes write tests",
+      "(due before tomorrow) OR (no due date)",
       "sort by due reverse",
       "group by priority",
     ].join("\n");
@@ -61,6 +63,10 @@ export class QueryModal extends Modal {
 
     this.errorEl = contentEl.createDiv({
       cls: "tasks-kanban-query-modal-errors",
+    });
+
+    this.warningEl = contentEl.createDiv({
+      cls: "tasks-kanban-query-modal-warnings",
     });
 
     const buttons = contentEl.createDiv({
@@ -90,19 +96,24 @@ export class QueryModal extends Modal {
     this.contentEl.empty();
   }
 
-  /** Re-parse the textarea and render any errors. */
+  /** Re-parse the textarea and render any errors or deprecation warnings. */
   private validate(): void {
-    const { query, errors } = parseQuery(this.textarea.value);
+    const { query, errors, warnings } = parseQuery(this.textarea.value);
     this.parsed = query;
 
     this.errorEl.empty();
-    if (errors.length === 0) {
-      return;
-    }
     for (const error of errors) {
       this.errorEl.createDiv({
         cls: "tasks-kanban-query-modal-error",
         text: error,
+      });
+    }
+
+    this.warningEl.empty();
+    for (const warning of warnings) {
+      this.warningEl.createDiv({
+        cls: "tasks-kanban-query-modal-warning",
+        text: warning,
       });
     }
   }
