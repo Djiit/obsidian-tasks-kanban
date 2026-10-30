@@ -76,6 +76,30 @@ export function buildColumns(statuses: StatusInfo[]): KanbanColumnConfig[] {
 }
 
 /**
+ * Move the column with `id` by `offset` positions (negative = up, positive =
+ * down), clamped to the list bounds. Returns a new array; the input is not
+ * mutated. Unknown ids and no-op moves return the input unchanged.
+ */
+export function moveColumn(
+  columns: ColumnConfig[],
+  id: string,
+  offset: number,
+): ColumnConfig[] {
+  const index = columns.findIndex((c) => c.id === id);
+  if (index === -1 || offset === 0) {
+    return columns;
+  }
+  const target = Math.min(Math.max(index + offset, 0), columns.length - 1);
+  if (target === index) {
+    return columns;
+  }
+  const next = [...columns];
+  const [moved] = next.splice(index, 1);
+  next.splice(target, 0, moved);
+  return next;
+}
+
+/**
  * Resolve a board's persisted column configuration into the runtime columns to
  * render. With no custom columns this is the default status columns
  * ({@link buildColumns}); otherwise each {@link ColumnConfig} becomes a runtime

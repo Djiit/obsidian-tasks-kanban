@@ -9,6 +9,7 @@ import {
 
 import { parseQuery } from "../query/boardQuery";
 import { createSavedBoard } from "../query/savedBoards";
+import { moveColumn } from "../utils/statusColumns";
 import type { ColumnConfig, SavedBoard } from "../types/persistence";
 import type { StatusInfo } from "../services/TasksIntegration";
 import type TasksKanbanPlugin from "../main";
@@ -116,6 +117,8 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       ...data.baseColumns.map((column) =>
         this.columnEditorDefinition(
           column,
+          data.baseColumns,
+          (next) => void this.saveBaseColumns(next, true),
           () => void this.saveBaseColumns(data.baseColumns, false),
           () =>
             void this.saveBaseColumns(
@@ -147,6 +150,8 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       ...(board.columns ?? []).map((column) =>
         this.columnEditorDefinition(
           column,
+          board.columns ?? [],
+          (next) => void this.saveBoardColumns(board.id, next, true),
           () =>
             void this.saveBoardColumns(board.id, board.columns ?? [], false),
           () =>
@@ -194,6 +199,8 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   /** One custom-column editor row, rendered imperatively via the shared controls. */
   private columnEditorDefinition(
     column: ColumnConfig,
+    columns: ColumnConfig[],
+    onReorder: (next: ColumnConfig[]) => void,
     onEdit: () => void,
     onDelete: () => void,
   ): SettingGroupItem {
@@ -205,6 +212,10 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         this.attachColumnControls(setting, column, this.plugin.getStatuses(), {
           onEdit,
           onDelete,
+          onMove: (offset) => onReorder(moveColumn(columns, column.id, offset)),
+          canMoveUp: columns.findIndex((c) => c.id === column.id) > 0,
+          canMoveDown:
+            columns.findIndex((c) => c.id === column.id) < columns.length - 1,
         });
       },
     };
@@ -479,7 +490,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     });
   }
 
-  /** Render one custom-column row: name, status checkboxes, delete. */
+  /** Render one custom-column row: name, status checkboxes, reorder, delete. */
   private renderColumnRow(
     containerEl: HTMLElement,
     column: ColumnConfig,
@@ -487,25 +498,39 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     onChange: (columns: ColumnConfig[]) => void,
     statuses: StatusInfo[],
   ): void {
+    const index = columns.findIndex((c) => c.id === column.id);
     this.attachColumnControls(new Setting(containerEl), column, statuses, {
       onDelete: () => {
         onChange(columns.filter((c) => c.id !== column.id));
         this.render();
       },
+      onMove: (offset) => {
+        onChange(moveColumn(columns, column.id, offset));
+        this.render();
+      },
+      canMoveUp: index > 0,
+      canMoveDown: index < columns.length - 1,
     });
   }
 
   /**
    * Attach the shared column editor to `setting`: a name input, a status-symbol
-   * checkbox list (the first checked symbol is the drop target), and a delete
-   * button. Edits mutate `column` in place and call `onEdit` so the caller can
-   * persist them; deletion is left to `onDelete`.
+   * checkbox list (the first checked symbol is the drop target), reorder buttons,
+   * and a delete button. Edits mutate `column` in place and call `onEdit` so the
+   * caller can persist them; deletion and reordering are left to `onDelete` and
+   * `onMove`.
    */
   private attachColumnControls(
     setting: Setting,
     column: ColumnConfig,
     statuses: StatusInfo[],
-    handlers: { onEdit?: () => void; onDelete: () => void },
+    handlers: {
+      onEdit?: () => void;
+      onDelete: () => void;
+      onMove?: (offset: number) => void;
+      canMoveUp?: boolean;
+      canMoveDown?: boolean;
+    },
   ): void {
     setting
       .setClass("tasks-kanban-setting-column")
@@ -517,6 +542,20 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
             column.title = value;
             handlers.onEdit?.();
           });
+      })
+      .addExtraButton((button) => {
+        button
+          .setIcon("up-chevron-glyph")
+          .setTooltip("Move column up")
+          .setDisabled(!handlers.canMoveUp)
+          .onClick(() => handlers.onMove?.(-1));
+      })
+      .addExtraButton((button) => {
+        button
+          .setIcon("down-chevron-glyph")
+          .setTooltip("Move column down")
+          .setDisabled(!handlers.canMoveDown)
+          .onClick(() => handlers.onMove?.(1));
       })
       .addExtraButton((button) => {
         button

@@ -205,10 +205,90 @@ describe("settings definitions: custom columns", () => {
 
       const setting = new Setting(document.createElement("div"));
       item?.render(setting);
-      setting.extraButtonComponents[0].click();
+      setting.extraButtonComponents.find((b) => b.icon === "trash")?.click();
 
       const [, baseColumns] = plugin.saveSettings.mock.calls[0];
       expect(baseColumns.map((c: ColumnConfig) => c.id)).toEqual(["col-2"]);
+    });
+
+    it("moves a column down from the editor row and re-renders", async () => {
+      const columns = [
+        makeColumn(),
+        makeColumn({ id: "col-2", title: "Review", symbols: ["r"] }),
+      ];
+      const { tab, plugin, update } = makeHarness(
+        makeData({ baseColumns: columns }),
+      );
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+      const item = columnItem(defs, "Ongoing");
+
+      const setting = new Setting(document.createElement("div"));
+      item?.render(setting);
+      setting.extraButtonComponents
+        .find((b) => b.icon === "down-chevron-glyph")
+        ?.click();
+      // The reorder persists asynchronously; let the save + re-render settle.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const [, baseColumns] = plugin.saveSettings.mock.calls[0];
+      expect(baseColumns.map((c: ColumnConfig) => c.id)).toEqual([
+        "col-2",
+        "col-1",
+      ]);
+      expect(update).toHaveBeenCalled();
+    });
+
+    it("moves a column up from the editor row", async () => {
+      const columns = [
+        makeColumn(),
+        makeColumn({ id: "col-2", title: "Review", symbols: ["r"] }),
+      ];
+      const { tab, plugin } = makeHarness(makeData({ baseColumns: columns }));
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+      const item = columnItem(defs, "Review");
+
+      const setting = new Setting(document.createElement("div"));
+      item?.render(setting);
+      setting.extraButtonComponents
+        .find((b) => b.icon === "up-chevron-glyph")
+        ?.click();
+
+      const [, baseColumns] = plugin.saveSettings.mock.calls[0];
+      expect(baseColumns.map((c: ColumnConfig) => c.id)).toEqual([
+        "col-2",
+        "col-1",
+      ]);
+    });
+
+    it("disables the up button on the first column and the down button on the last", () => {
+      const columns = [
+        makeColumn(),
+        makeColumn({ id: "col-2", title: "Review", symbols: ["r"] }),
+      ];
+      const { tab } = makeHarness(makeData({ baseColumns: columns }));
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+
+      const first = new Setting(document.createElement("div"));
+      columnItem(defs, "Ongoing")?.render(first);
+      expect(
+        first.extraButtonComponents.find((b) => b.icon === "up-chevron-glyph")
+          ?.buttonEl.disabled,
+      ).toBe(true);
+      expect(
+        first.extraButtonComponents.find((b) => b.icon === "down-chevron-glyph")
+          ?.buttonEl.disabled,
+      ).toBe(false);
+
+      const last = new Setting(document.createElement("div"));
+      columnItem(defs, "Review")?.render(last);
+      expect(
+        last.extraButtonComponents.find((b) => b.icon === "up-chevron-glyph")
+          ?.buttonEl.disabled,
+      ).toBe(false);
+      expect(
+        last.extraButtonComponents.find((b) => b.icon === "down-chevron-glyph")
+          ?.buttonEl.disabled,
+      ).toBe(true);
     });
 
     it("adds a column from the Add column action", async () => {
@@ -309,6 +389,30 @@ describe("settings definitions: custom columns", () => {
 
       const [, , savedBoards] = plugin.saveSettings.mock.calls[0];
       expect(savedBoards[0].columns[0].symbols).toEqual(["x"]);
+    });
+
+    it("reorders a board's columns from the editor row", async () => {
+      const board = makeBoard({
+        columns: [
+          makeColumn(),
+          makeColumn({ id: "col-2", title: "Review", symbols: ["r"] }),
+        ],
+      });
+      const { tab, plugin } = makeHarness(makeData({ savedBoards: [board] }));
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+      const item = columnItem(defs, "Ongoing");
+
+      const setting = new Setting(document.createElement("div"));
+      item?.render(setting);
+      setting.extraButtonComponents
+        .find((b) => b.icon === "down-chevron-glyph")
+        ?.click();
+
+      const [, , savedBoards] = plugin.saveSettings.mock.calls[0];
+      expect(savedBoards[0].columns.map((c: ColumnConfig) => c.id)).toEqual([
+        "col-2",
+        "col-1",
+      ]);
     });
   });
 });
