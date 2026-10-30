@@ -78,31 +78,98 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       {
         type: "group",
         heading: "Saved boards",
-        items: data.savedBoards.flatMap((board) => [
+        items: [
+          ...data.savedBoards.flatMap((board): SettingGroupItem[] => [
+            this.boardNameDefinition(board),
+            {
+              name: "Query",
+              desc: "One instruction per line. This query is merged with the base query.",
+              aliases: board.query
+                ? board.query.split("\n").filter((l) => l.trim())
+                : [],
+              control: {
+                type: "textarea",
+                key: `savedBoardQuery-${board.id}`,
+                placeholder: QUERY_PLACEHOLDER,
+              },
+            },
+            ...this.boardColumnDefinitions(board),
+          ]),
           {
-            name: board.name,
-            desc: "Board name",
-            control: {
-              type: "text",
-              key: `savedBoardName-${board.id}`,
+            name: "Add saved board",
+            desc: "Create a new saved board.",
+            action: () => {
+              void this.saveSavedBoards([
+                ...this.plugin.getPluginData().savedBoards,
+                createSavedBoard("New board"),
+              ]);
             },
           },
-          {
-            name: "Query",
-            desc: "One instruction per line. This query is merged with the base query.",
-            aliases: board.query
-              ? board.query.split("\n").filter((l) => l.trim())
-              : [],
-            control: {
-              type: "textarea",
-              key: `savedBoardQuery-${board.id}`,
-              placeholder: QUERY_PLACEHOLDER,
-            },
-          },
-          ...this.boardColumnDefinitions(board),
-        ]),
+        ],
       },
     ];
+  }
+
+  /**
+   * One saved board's name row: a text input to rename the board and a trash
+   * button to delete it. Rendered imperatively because a control-based row
+   * cannot carry the extra delete button.
+   */
+  private boardNameDefinition(board: SavedBoard): SettingGroupItem {
+    return {
+      name: board.name,
+      desc: "Board name",
+      aliases: ["board", "view"],
+      render: (setting: Setting) => {
+        setting
+          .addText((text) => {
+            text
+              .setPlaceholder("Board name")
+              .setValue(board.name)
+              .onChange((value) => {
+                void this.saveSavedBoards(
+                  this.plugin
+                    .getPluginData()
+                    .savedBoards.map((b) =>
+                      b.id === board.id ? { ...b, name: value } : b,
+                    ),
+                  false,
+                );
+              });
+          })
+          .addExtraButton((button) => {
+            button
+              .setIcon("trash")
+              .setTooltip("Delete saved board")
+              .onClick(() => {
+                void this.saveSavedBoards(
+                  this.plugin
+                    .getPluginData()
+                    .savedBoards.filter((b) => b.id !== board.id),
+                );
+              });
+          });
+      },
+    };
+  }
+
+  /**
+   * Persist the saved-board list and re-render the definitions UI. In-place
+   * edits (rename) skip the re-render so the input being typed in keeps focus.
+   */
+  private async saveSavedBoards(
+    savedBoards: SavedBoard[],
+    rerender = true,
+  ): Promise<void> {
+    const data = this.plugin.getPluginData();
+    await this.plugin.saveSettings(
+      data.baseQuery,
+      data.baseColumns,
+      savedBoards,
+    );
+    if (rerender) {
+      this.refreshDefinitions();
+    }
   }
 
   /**
@@ -234,11 +301,6 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       const board = data.savedBoards.find((b) => b.id === boardId);
       return (board?.columns?.length ?? 0) > 0;
     }
-    if (key.startsWith("savedBoardName-")) {
-      const boardId = key.replace("savedBoardName-", "");
-      const board = data.savedBoards.find((b) => b.id === boardId);
-      return board?.name ?? "";
-    }
     if (key.startsWith("savedBoardQuery-")) {
       const boardId = key.replace("savedBoardQuery-", "");
       const board = data.savedBoards.find((b) => b.id === boardId);
@@ -272,18 +334,6 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         ? [{ id: newColumnId(), title: "", symbols: [] }]
         : [];
       await this.saveBoardColumns(boardId, newColumns, true);
-      return;
-    }
-    if (key.startsWith("savedBoardName-")) {
-      const boardId = key.replace("savedBoardName-", "");
-      const savedBoards = data.savedBoards.map((b) =>
-        b.id === boardId ? { ...b, name: value as string } : b,
-      );
-      await this.plugin.saveSettings(
-        data.baseQuery,
-        data.baseColumns,
-        savedBoards,
-      );
       return;
     }
     if (key.startsWith("savedBoardQuery-")) {

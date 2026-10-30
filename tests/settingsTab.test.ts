@@ -391,6 +391,80 @@ describe("settings definitions: custom columns", () => {
       expect(savedBoards[0].columns[0].symbols).toEqual(["x"]);
     });
 
+    it("renders a name row per board with a delete button", () => {
+      const board = makeBoard({ name: "Work" });
+      const { tab } = makeHarness(makeData({ savedBoards: [board] }));
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+
+      const item = columnItem(defs, "Work");
+      expect(item).toBeDefined();
+
+      const setting = new Setting(document.createElement("div"));
+      item?.render(setting);
+      expect(setting.textComponents).toHaveLength(1);
+      expect(
+        setting.extraButtonComponents.find((b) => b.icon === "trash"),
+      ).toBeDefined();
+    });
+
+    it("deletes a saved board from its name row and re-renders", async () => {
+      const board = makeBoard({ name: "Work" });
+      const other = makeBoard({ id: "board-2", name: "Personal" });
+      const { tab, plugin, update } = makeHarness(
+        makeData({ savedBoards: [board, other] }),
+      );
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+      const item = columnItem(defs, "Work");
+
+      const setting = new Setting(document.createElement("div"));
+      item?.render(setting);
+      setting.extraButtonComponents.find((b) => b.icon === "trash")?.click();
+      // The delete persists asynchronously; let the save + re-render settle.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const [, , savedBoards] = plugin.saveSettings.mock.calls[0];
+      expect(savedBoards.map((b: SavedBoard) => b.id)).toEqual(["board-2"]);
+      expect(update).toHaveBeenCalled();
+    });
+
+    it("renames a saved board from its name row without re-rendering", async () => {
+      const board = makeBoard({ name: "Work" });
+      const { tab, plugin, update } = makeHarness(
+        makeData({ savedBoards: [board] }),
+      );
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+      const item = columnItem(defs, "Work");
+
+      const setting = new Setting(document.createElement("div"));
+      item?.render(setting);
+      setting.textComponents[0].simulate("Work v2");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const [, , savedBoards] = plugin.saveSettings.mock.calls[0];
+      expect(savedBoards[0].name).toBe("Work v2");
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("adds a saved board from the Add saved board action", async () => {
+      const board = makeBoard({ name: "Work" });
+      const { tab, plugin, update } = makeHarness(
+        makeData({ savedBoards: [board] }),
+      );
+      const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+
+      findByName(defs, "Add saved board")?.action(
+        document.createElement("div"),
+        0,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const [, , savedBoards] = plugin.saveSettings.mock.calls[0];
+      expect(savedBoards).toHaveLength(2);
+      expect(savedBoards[0].id).toBe("board-1");
+      expect(savedBoards[1].name).toBe("New board");
+      expect(update).toHaveBeenCalled();
+    });
+
     it("reorders a board's columns from the editor row", async () => {
       const board = makeBoard({
         columns: [
