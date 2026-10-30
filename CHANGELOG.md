@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.12.0...0.13.0) (2026-10-30)
+
+
+### Features
+
+* **settings:** reorder custom columns with up/down buttons ([#119](https://github.com/Djiit/obsidian-tasks-kanban/issues/119)) ([c59513b](https://github.com/Djiit/obsidian-tasks-kanban/commit/c59513b6c1c9b968ab4ed4a466482a5b677bc75b))
+
+
+### Bug Fixes
+
+* **settings:** delete and add saved boards on the definitions path ([#121](https://github.com/Djiit/obsidian-tasks-kanban/issues/121)) ([77cd4c7](https://github.com/Djiit/obsidian-tasks-kanban/commit/77cd4c7ecc6817028f910b46a79459e200872629))
+
 ## [0.12.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.11.0...0.12.0) (2026-10-30)
 
 
