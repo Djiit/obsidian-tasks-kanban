@@ -543,6 +543,12 @@
     line-height: 1.4;
     color: var(--text-normal);
     word-break: break-word;
+    /* Keep long descriptions from growing the card vertically. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
 }
 
 /* Card tags */
