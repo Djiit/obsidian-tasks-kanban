@@ -150,11 +150,21 @@ export class ButtonComponent {
 }
 
 export class ExtraButtonComponent extends ButtonComponent {
-  setIcon(_icon: string): this {
+  icon = "";
+  tooltip = "";
+
+  setIcon(icon: string): this {
+    this.icon = icon;
     return this;
   }
 
-  setTooltip(_tooltip: string): this {
+  setTooltip(tooltip: string): this {
+    this.tooltip = tooltip;
+    return this;
+  }
+
+  setDisabled(disabled: boolean): this {
+    this.buttonEl.disabled = disabled;
     return this;
   }
 }

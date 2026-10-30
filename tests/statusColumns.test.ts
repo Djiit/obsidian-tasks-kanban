@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildColumns, resolveColumns } from "../src/utils/statusColumns";
+import {
+  buildColumns,
+  moveColumn,
+  resolveColumns,
+} from "../src/utils/statusColumns";
 import type { StatusInfo } from "../src/services/TasksIntegration";
 import type { ColumnConfig } from "../src/types/persistence";
 
@@ -90,5 +94,55 @@ describe("resolveColumns", () => {
     ];
     const columns = resolveColumns(custom, VAULT_STATUSES);
     expect(columns.map((c) => c.id)).toEqual(["b"]);
+  });
+});
+
+describe("moveColumn", () => {
+  const columns: ColumnConfig[] = [
+    { id: "a", title: "Todo", symbols: [" "] },
+    { id: "b", title: "Doing", symbols: ["/"] },
+    { id: "c", title: "Done", symbols: ["x"] },
+  ];
+
+  it("moves a column down one position", () => {
+    expect(moveColumn(columns, "a", 1).map((c) => c.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+  });
+
+  it("moves a column up one position", () => {
+    expect(moveColumn(columns, "c", -1).map((c) => c.id)).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
+  });
+
+  it("clamps at the top of the list", () => {
+    expect(moveColumn(columns, "a", -1).map((c) => c.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("clamps at the bottom of the list", () => {
+    expect(moveColumn(columns, "c", 1).map((c) => c.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("does not mutate the input array", () => {
+    const before = columns.map((c) => c.id);
+    moveColumn(columns, "a", 1);
+    expect(columns.map((c) => c.id)).toEqual(before);
+  });
+
+  it("returns the input unchanged for an unknown id", () => {
+    expect(moveColumn(columns, "nope", 1)).toBe(columns);
   });
 });
