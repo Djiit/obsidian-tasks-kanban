@@ -282,6 +282,80 @@ describe("parseQuery", () => {
     });
   });
 
+  describe("Boolean instructions", () => {
+    it("parses a line combining filters with OR", () => {
+      const { query, errors } = parseQuery(
+        "(due before tomorrow) OR (no due date)",
+      );
+      expect(errors).toEqual([]);
+      expect(query.filters).toHaveLength(1);
+      expect(query.filters[0]).toMatchObject({
+        kind: "boolean",
+        expr: {
+          op: "or",
+          left: {
+            op: "leaf",
+            filter: { kind: "date", field: "dueDate", operator: "before" },
+          },
+          right: {
+            op: "leaf",
+            filter: { kind: "date", field: "dueDate", operator: "no" },
+          },
+        },
+      });
+    });
+
+    it("accepts any supported filter as an operand", () => {
+      const { query, errors } = parseQuery(
+        "[tag includes #work] AND NOT [folder includes Archive] OR [description includes (urgent)]",
+      );
+      expect(errors).toEqual([]);
+      expect(query.filters[0].kind).toBe("boolean");
+    });
+
+    it("collects deprecation warnings from operands", () => {
+      const { errors, warnings } = parseQuery(
+        "(tag not includes #book) OR (no due date)",
+      );
+      expect(errors).toEqual([]);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain("Line 1");
+      expect(warnings[0]).toContain("deprecated");
+    });
+
+    it("reports an unsupported operand and skips the line", () => {
+      const { query, errors } = parseQuery(
+        "tag includes #work\n(priority is high) OR (no due date)",
+      );
+      expect(getTags(query)).toEqual(["work"]);
+      expect(query.filters).toHaveLength(1);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Line 2");
+      expect(errors[0]).toContain('"priority is high"');
+    });
+
+    it("rejects sort and group instructions as operands", () => {
+      for (const line of [
+        "(sort by due) OR (no due date)",
+        "(group by status) OR (no due date)",
+      ]) {
+        const { query, errors } = parseQuery(line);
+        expect(query.filters).toEqual([]);
+        expect(query.sort).toEqual([]);
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toContain("only filters");
+      }
+    });
+
+    it("reports malformed Boolean syntax", () => {
+      const { query, errors } = parseQuery("(no due date) or (due today)");
+      expect(query.filters).toEqual([]);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Line 1");
+      expect(errors[0]).toContain('use "OR"');
+    });
+  });
+
   describe("tolerant errors on unsupported lines", () => {
     it("flags a bare # tag (no shorthand) and skips it", () => {
       const { query, errors } = parseQuery("#work");
@@ -387,6 +461,11 @@ describe("serializeQuery / round-trip", () => {
     expect(serializeQuery(query)).toBe("starts before tomorrow");
   });
 
+  it('serializes "has" and "no" date filters as written in Tasks', () => {
+    const source = "has due date\nno scheduled date";
+    expect(serializeQuery(parseQuery(source).query)).toBe(source);
+  });
+
   it("serializes mixed filters including date filters", () => {
     const { query } = parseQuery(
       "tag includes #work\nstarts before tomorrow\nsort by due",
@@ -428,6 +507,81 @@ describe("serializeQuery / round-trip", () => {
     const first = parseQuery(source).query;
     const second = parseQuery(serializeQuery(first)).query;
     expect(second).toEqual(first);
+  });
+
+  it("serializes Boolean instructions in canonical form", () => {
+    const { query } = parseQuery(
+      "tag includes #work\n[due before tomorrow]   OR [no due date]\nsort by due",
+    );
+    expect(serializeQuery(query)).toBe(
+      "tag includes #work\n(due before tomorrow) OR (no due date)\nsort by due",
+    );
+  });
+
+  it("serializes NOT unwrapped and nested groups with parentheses", () => {
+    const { query } = parseQuery(
+      "NOT (tag includes #someday) AND ((due today) OR (no due date))",
+    );
+    expect(serializeQuery(query)).toBe(
+      "NOT (tag includes #someday) AND ((due today) OR (no due date))",
+    );
+  });
+
+  it("serializes AND NOT and chained operators without extra parentheses", () => {
+    const source =
+      "(due today) OR (no due date) OR (due before today) AND NOT (tag includes #someday)";
+    expect(serializeQuery(parseQuery(source).query)).toBe(
+      "(due today) OR (no due date) OR ((due before today) AND NOT (tag includes #someday))",
+    );
+  });
+
+  it("normalizes legacy spellings inside Boolean operands", () => {
+    const { query } = parseQuery("(tag not includes #book) OR (due today)");
+    expect(serializeQuery(query)).toBe(
+      "(tag does not include #book) OR (due today)",
+    );
+  });
+
+  it("switches delimiters when an operand contains parentheses", () => {
+    const source =
+      "(description includes (maybe)) OR (description includes later)";
+    const { query, errors } = parseQuery(source);
+    expect(errors).toEqual([]);
+    const serialized = serializeQuery(query);
+    expect(serialized).toBe(
+      "[description includes (maybe)] OR [description includes later]",
+    );
+    expect(parseQuery(serialized).query).toEqual(query);
+  });
+
+  it("round-trips Boolean instructions whose operands contain every delimiter", () => {
+    for (const source of [
+      "[[description includes :)] OR [description includes [x]]] AND [description includes {y}]",
+      '"description includes (" OR "description includes [" AND "description includes {"',
+      'NOT "description includes (" XOR "description includes [{"',
+    ]) {
+      const first = parseQuery(source);
+      expect(first.errors).toEqual([]);
+      const second = parseQuery(serializeQuery(first.query));
+      expect(second.errors).toEqual([]);
+      expect(second.query).toEqual(first.query);
+    }
+  });
+
+  it("round-trips Boolean instructions", () => {
+    for (const source of [
+      "(due before tomorrow) OR (no due date)",
+      "(due today) XOR (scheduled today)",
+      "NOT (tag includes #someday)",
+      "(tag includes #a) OR (tag includes #b) AND (description includes x)",
+      "((due before tomorrow) OR (no due date)) AND NOT (folder includes Archive)",
+    ]) {
+      const first = parseQuery(source);
+      expect(first.errors).toEqual([]);
+      const second = parseQuery(serializeQuery(first.query));
+      expect(second.errors).toEqual([]);
+      expect(second.query).toEqual(first.query);
+    }
   });
 });
 
@@ -894,6 +1048,76 @@ describe("applyBoardQuery", () => {
       expect(result).toContainEqual(tasks[0]);
       expect(result).not.toContainEqual(tasks[1]);
       expect(result).not.toContainEqual(tasks[2]);
+    });
+  });
+
+  describe("Boolean instructions", () => {
+    const offset = (days: number): string => {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return toLocalISODate(d);
+    };
+
+    const tasks = [
+      createTask({ id: "overdue", dueDate: offset(-3), tags: ["work"] }),
+      createTask({ id: "today", dueDate: offset(0), tags: ["home"] }),
+      createTask({ id: "future", dueDate: offset(5), tags: ["work"] }),
+      createTask({ id: "undated", dueDate: null, tags: ["home"] }),
+    ];
+
+    it("shows overdue, due-today and undated tasks", () => {
+      const { query } = parseQuery("(due before tomorrow) OR (no due date)");
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "overdue",
+        "today",
+        "undated",
+      ]);
+    });
+
+    it("ANDs a Boolean line with the other lines", () => {
+      const { query } = parseQuery(
+        "tag includes #home\n(due before tomorrow) OR (no due date)",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["today", "undated"]);
+    });
+
+    it("evaluates operand filters with their usual semantics", () => {
+      const { query } = parseQuery(
+        "(tag includes #work) AND NOT (due after today)",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual(["overdue"]);
+    });
+
+    it("evaluates NOT and XOR", () => {
+      expect(
+        ids(applyBoardQuery(tasks, parseQuery("NOT (has due date)").query)),
+      ).toEqual(["undated"]);
+      expect(
+        ids(
+          applyBoardQuery(
+            tasks,
+            parseQuery("(tag includes #work) XOR (due before tomorrow)").query,
+          ),
+        ),
+      ).toEqual(["today", "future"]);
+    });
+
+    it("ANDs several Boolean lines together", () => {
+      const { query } = parseQuery(
+        "(due before tomorrow) OR (no due date)\n(tag includes #work) OR (no due date)",
+      );
+      expect(ids(applyBoardQuery(tasks, query))).toEqual([
+        "overdue",
+        "undated",
+      ]);
+    });
+
+    it("merges Boolean lines from the base query", () => {
+      const base = parseQuery("(due before tomorrow) OR (no due date)").query;
+      const overlay = parseQuery("tag includes #work").query;
+      expect(ids(applyBoardQuery(tasks, mergeQueries(base, overlay)))).toEqual([
+        "overdue",
+      ]);
     });
   });
 });
