@@ -48,7 +48,7 @@ describe("parseQuery", () => {
   it("returns empty query for blank input", () => {
     const { query, errors } = parseQuery("");
     expect(query.filters).toEqual([]);
-    expect(query.sort).toEqual(DEFAULT_SORT_STATE);
+    expect(query.sort).toEqual([]);
     expect(errors).toEqual([]);
   });
 
@@ -139,22 +139,31 @@ describe("parseQuery", () => {
   });
 
   it("parses sort with and without reverse", () => {
-    expect(parseQuery("sort by priority").query.sort).toEqual({
-      field: "priority",
-      direction: "asc",
-    });
-    expect(parseQuery("sort by due reverse").query.sort).toEqual({
-      field: "dueDate",
-      direction: "desc",
-    });
+    expect(parseQuery("sort by priority").query.sort).toEqual([
+      { field: "priority", direction: "asc" },
+    ]);
+    expect(parseQuery("sort by due reverse").query.sort).toEqual([
+      { field: "dueDate", direction: "desc" },
+    ]);
   });
 
   it("maps each sort keyword to its field", () => {
-    expect(parseQuery("sort by scheduled").query.sort.field).toBe(
+    expect(parseQuery("sort by scheduled").query.sort[0].field).toBe(
       "scheduledDate",
     );
-    expect(parseQuery("sort by start").query.sort.field).toBe("startDate");
-    expect(parseQuery("sort by created").query.sort.field).toBe("createdDate");
+    expect(parseQuery("sort by start").query.sort[0].field).toBe("startDate");
+    expect(parseQuery("sort by created").query.sort[0].field).toBe(
+      "createdDate",
+    );
+  });
+
+  it("keeps every sort line as a key, in query order", () => {
+    expect(
+      parseQuery("sort by priority\nsort by created reverse").query.sort,
+    ).toEqual([
+      { field: "priority", direction: "asc" },
+      { field: "createdDate", direction: "desc" },
+    ]);
   });
 
   describe("date filters", () => {
@@ -311,7 +320,7 @@ describe("parseQuery", () => {
         "tag includes #work\npriority is high\nsort by due",
       );
       expect(getTags(query)).toEqual(["work"]);
-      expect(query.sort.field).toBe("dueDate");
+      expect(query.sort[0].field).toBe("dueDate");
       expect(errors).toHaveLength(1);
       expect(errors[0]).toContain("Line 2");
     });
@@ -387,6 +396,12 @@ describe("serializeQuery / round-trip", () => {
     );
   });
 
+  it("serializes every sort key in order", () => {
+    const source =
+      "tag includes #work\nsort by priority\nsort by created reverse";
+    expect(serializeQuery(parseQuery(source).query)).toBe(source);
+  });
+
   it("omits the sort line when there is no sorting", () => {
     const { query } = parseQuery("tag includes #work");
     expect(serializeQuery(query)).toBe("tag includes #work");
@@ -428,11 +443,21 @@ describe("slice helpers", () => {
     expect(getSort(q)).toEqual({ field: "dueDate", direction: "desc" });
   });
 
+  it("getSort reads the first sort key", () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    expect(getSort(q)).toEqual({ field: "priority", direction: "asc" });
+  });
+
+  it("getSort falls back to the default state without sort keys", () => {
+    const q = parseQuery("tag includes #work").query;
+    expect(getSort(q)).toEqual(DEFAULT_SORT_STATE);
+  });
+
   it("withTitle preserves tags and sort", () => {
     const updated = withTitle(base, "hello");
     expect(getTitle(updated)).toBe("hello");
     expect(getTags(updated)).toEqual(["work"]);
-    expect(updated.sort.field).toBe("priority");
+    expect(getSort(updated).field).toBe("priority");
   });
 
   it("withTitle removes the description filter when cleared", () => {
@@ -493,8 +518,29 @@ describe("slice helpers", () => {
 
   it("withSort preserves filters", () => {
     const updated = withSort(base, { field: "dueDate", direction: "desc" });
-    expect(updated.sort).toEqual({ field: "dueDate", direction: "desc" });
+    expect(updated.sort).toEqual([{ field: "dueDate", direction: "desc" }]);
     expect(updated.filters).toEqual(base.filters);
+  });
+
+  it("withSort replaces the first key and keeps the later keys", () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    const updated = withSort(q, { field: "dueDate", direction: "asc" });
+    expect(updated.sort).toEqual([
+      { field: "dueDate", direction: "asc" },
+      { field: "createdDate", direction: "desc" },
+    ]);
+  });
+
+  it("withSort drops a later key on the new first key's field", () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    const updated = withSort(q, { field: "createdDate", direction: "asc" });
+    expect(updated.sort).toEqual([{ field: "createdDate", direction: "asc" }]);
+  });
+
+  it('withSort clears every key for "none"', () => {
+    const q = parseQuery("sort by priority\nsort by created reverse").query;
+    const updated = withSort(q, { field: "none", direction: "desc" });
+    expect(updated.sort).toEqual([]);
   });
 });
 
@@ -503,7 +549,7 @@ describe("applyBoardQuery", () => {
     const tasks = [createTask()];
     const result = applyBoardQuery(tasks, {
       filters: [],
-      sort: { ...DEFAULT_SORT_STATE },
+      sort: [],
     });
     expect(result).not.toBe(tasks);
     expect(result).toHaveLength(1);
@@ -853,18 +899,12 @@ describe("applyBoardQuery", () => {
 });
 
 describe("isDefaultSort", () => {
-  it("is true for the default sort state", () => {
-    expect(isDefaultSort({ ...DEFAULT_SORT_STATE })).toBe(true);
+  it("is true without sort keys", () => {
+    expect(isDefaultSort([])).toBe(true);
   });
 
-  it("is false when the field differs", () => {
-    expect(isDefaultSort({ field: "dueDate", direction: "asc" })).toBe(false);
-  });
-
-  it("is false when the direction differs", () => {
-    expect(
-      isDefaultSort({ field: DEFAULT_SORT_STATE.field, direction: "desc" }),
-    ).toBe(false);
+  it("is false with a sort key", () => {
+    expect(isDefaultSort([{ field: "dueDate", direction: "asc" }])).toBe(false);
   });
 });
 
