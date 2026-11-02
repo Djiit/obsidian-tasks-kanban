@@ -1,6 +1,6 @@
 {
   "name": "obsidian-tasks-kanban",
-  "version": "0.11.0",
+  "version": "0.13.0",
   "description": "Kanban board view for Obsidian Tasks",
   "main": "main.js",
   "engines": {
@@ -45,16 +45,15 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.2",
-    "@types/node": "^26.2.0",
-    "@typescript-eslint/parser": "^8.68.0",
+    "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
-    "eslint": "^10.8.1",
+    "eslint": "^10.13.0",
     "eslint-plugin-obsidianmd": "^0.4.2",
     "husky": "^9.1.7",
     "jsdom": "^30.1.1",
     "nano-staged": "^1.0.2",
-    "prettier": "^3.9.8",
-    "typescript": "^6.0.3",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   },
   "dependencies": {

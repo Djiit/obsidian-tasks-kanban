@@ -9,6 +9,7 @@ import {
 
 import { parseQuery } from "../query/boardQuery";
 import { createSavedBoard } from "../query/savedBoards";
+import { moveColumn } from "../utils/statusColumns";
 import type { ColumnConfig, SavedBoard } from "../types/persistence";
 import type { StatusInfo } from "../services/TasksIntegration";
 import type TasksKanbanPlugin from "../main";
@@ -77,31 +78,98 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       {
         type: "group",
         heading: "Saved boards",
-        items: data.savedBoards.flatMap((board) => [
+        items: [
+          ...data.savedBoards.flatMap((board): SettingGroupItem[] => [
+            this.boardNameDefinition(board),
+            {
+              name: "Query",
+              desc: "One instruction per line. This query is merged with the base query.",
+              aliases: board.query
+                ? board.query.split("\n").filter((l) => l.trim())
+                : [],
+              control: {
+                type: "textarea",
+                key: `savedBoardQuery-${board.id}`,
+                placeholder: QUERY_PLACEHOLDER,
+              },
+            },
+            ...this.boardColumnDefinitions(board),
+          ]),
           {
-            name: board.name,
-            desc: "Board name",
-            control: {
-              type: "text",
-              key: `savedBoardName-${board.id}`,
+            name: "Add saved board",
+            desc: "Create a new saved board.",
+            action: () => {
+              void this.saveSavedBoards([
+                ...this.plugin.getPluginData().savedBoards,
+                createSavedBoard("New board"),
+              ]);
             },
           },
-          {
-            name: "Query",
-            desc: "One instruction per line. This query is merged with the base query.",
-            aliases: board.query
-              ? board.query.split("\n").filter((l) => l.trim())
-              : [],
-            control: {
-              type: "textarea",
-              key: `savedBoardQuery-${board.id}`,
-              placeholder: QUERY_PLACEHOLDER,
-            },
-          },
-          ...this.boardColumnDefinitions(board),
-        ]),
+        ],
       },
     ];
+  }
+
+  /**
+   * One saved board's name row: a text input to rename the board and a trash
+   * button to delete it. Rendered imperatively because a control-based row
+   * cannot carry the extra delete button.
+   */
+  private boardNameDefinition(board: SavedBoard): SettingGroupItem {
+    return {
+      name: board.name,
+      desc: "Board name",
+      aliases: ["board", "view"],
+      render: (setting: Setting) => {
+        setting
+          .addText((text) => {
+            text
+              .setPlaceholder("Board name")
+              .setValue(board.name)
+              .onChange((value) => {
+                void this.saveSavedBoards(
+                  this.plugin
+                    .getPluginData()
+                    .savedBoards.map((b) =>
+                      b.id === board.id ? { ...b, name: value } : b,
+                    ),
+                  false,
+                );
+              });
+          })
+          .addExtraButton((button) => {
+            button
+              .setIcon("trash")
+              .setTooltip("Delete saved board")
+              .onClick(() => {
+                void this.saveSavedBoards(
+                  this.plugin
+                    .getPluginData()
+                    .savedBoards.filter((b) => b.id !== board.id),
+                );
+              });
+          });
+      },
+    };
+  }
+
+  /**
+   * Persist the saved-board list and re-render the definitions UI. In-place
+   * edits (rename) skip the re-render so the input being typed in keeps focus.
+   */
+  private async saveSavedBoards(
+    savedBoards: SavedBoard[],
+    rerender = true,
+  ): Promise<void> {
+    const data = this.plugin.getPluginData();
+    await this.plugin.saveSettings(
+      data.baseQuery,
+      data.baseColumns,
+      savedBoards,
+    );
+    if (rerender) {
+      this.refreshDefinitions();
+    }
   }
 
   /**
@@ -116,6 +184,8 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       ...data.baseColumns.map((column) =>
         this.columnEditorDefinition(
           column,
+          data.baseColumns,
+          (next) => void this.saveBaseColumns(next, true),
           () => void this.saveBaseColumns(data.baseColumns, false),
           () =>
             void this.saveBaseColumns(
@@ -147,6 +217,8 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       ...(board.columns ?? []).map((column) =>
         this.columnEditorDefinition(
           column,
+          board.columns ?? [],
+          (next) => void this.saveBoardColumns(board.id, next, true),
           () =>
             void this.saveBoardColumns(board.id, board.columns ?? [], false),
           () =>
@@ -194,6 +266,8 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   /** One custom-column editor row, rendered imperatively via the shared controls. */
   private columnEditorDefinition(
     column: ColumnConfig,
+    columns: ColumnConfig[],
+    onReorder: (next: ColumnConfig[]) => void,
     onEdit: () => void,
     onDelete: () => void,
   ): SettingGroupItem {
@@ -205,6 +279,10 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         this.attachColumnControls(setting, column, this.plugin.getStatuses(), {
           onEdit,
           onDelete,
+          onMove: (offset) => onReorder(moveColumn(columns, column.id, offset)),
+          canMoveUp: columns.findIndex((c) => c.id === column.id) > 0,
+          canMoveDown:
+            columns.findIndex((c) => c.id === column.id) < columns.length - 1,
         });
       },
     };
@@ -222,11 +300,6 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       const boardId = key.replace("savedBoardColumnsEnabled-", "");
       const board = data.savedBoards.find((b) => b.id === boardId);
       return (board?.columns?.length ?? 0) > 0;
-    }
-    if (key.startsWith("savedBoardName-")) {
-      const boardId = key.replace("savedBoardName-", "");
-      const board = data.savedBoards.find((b) => b.id === boardId);
-      return board?.name ?? "";
     }
     if (key.startsWith("savedBoardQuery-")) {
       const boardId = key.replace("savedBoardQuery-", "");
@@ -261,18 +334,6 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
         ? [{ id: newColumnId(), title: "", symbols: [] }]
         : [];
       await this.saveBoardColumns(boardId, newColumns, true);
-      return;
-    }
-    if (key.startsWith("savedBoardName-")) {
-      const boardId = key.replace("savedBoardName-", "");
-      const savedBoards = data.savedBoards.map((b) =>
-        b.id === boardId ? { ...b, name: value as string } : b,
-      );
-      await this.plugin.saveSettings(
-        data.baseQuery,
-        data.baseColumns,
-        savedBoards,
-      );
       return;
     }
     if (key.startsWith("savedBoardQuery-")) {
@@ -479,7 +540,7 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     });
   }
 
-  /** Render one custom-column row: name, status checkboxes, delete. */
+  /** Render one custom-column row: name, status checkboxes, reorder, delete. */
   private renderColumnRow(
     containerEl: HTMLElement,
     column: ColumnConfig,
@@ -487,25 +548,39 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
     onChange: (columns: ColumnConfig[]) => void,
     statuses: StatusInfo[],
   ): void {
+    const index = columns.findIndex((c) => c.id === column.id);
     this.attachColumnControls(new Setting(containerEl), column, statuses, {
       onDelete: () => {
         onChange(columns.filter((c) => c.id !== column.id));
         this.render();
       },
+      onMove: (offset) => {
+        onChange(moveColumn(columns, column.id, offset));
+        this.render();
+      },
+      canMoveUp: index > 0,
+      canMoveDown: index < columns.length - 1,
     });
   }
 
   /**
    * Attach the shared column editor to `setting`: a name input, a status-symbol
-   * checkbox list (the first checked symbol is the drop target), and a delete
-   * button. Edits mutate `column` in place and call `onEdit` so the caller can
-   * persist them; deletion is left to `onDelete`.
+   * checkbox list (the first checked symbol is the drop target), reorder buttons,
+   * and a delete button. Edits mutate `column` in place and call `onEdit` so the
+   * caller can persist them; deletion and reordering are left to `onDelete` and
+   * `onMove`.
    */
   private attachColumnControls(
     setting: Setting,
     column: ColumnConfig,
     statuses: StatusInfo[],
-    handlers: { onEdit?: () => void; onDelete: () => void },
+    handlers: {
+      onEdit?: () => void;
+      onDelete: () => void;
+      onMove?: (offset: number) => void;
+      canMoveUp?: boolean;
+      canMoveDown?: boolean;
+    },
   ): void {
     setting
       .setClass("tasks-kanban-setting-column")
@@ -517,6 +592,20 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
             column.title = value;
             handlers.onEdit?.();
           });
+      })
+      .addExtraButton((button) => {
+        button
+          .setIcon("up-chevron-glyph")
+          .setTooltip("Move column up")
+          .setDisabled(!handlers.canMoveUp)
+          .onClick(() => handlers.onMove?.(-1));
+      })
+      .addExtraButton((button) => {
+        button
+          .setIcon("down-chevron-glyph")
+          .setTooltip("Move column down")
+          .setDisabled(!handlers.canMoveDown)
+          .onClick(() => handlers.onMove?.(1));
       })
       .addExtraButton((button) => {
         button

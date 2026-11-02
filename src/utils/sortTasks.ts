@@ -18,8 +18,9 @@ type DateSortField = "dueDate" | "scheduledDate" | "startDate" | "createdDate";
 export type SortDirection = "asc" | "desc";
 
 /**
- * The state of the sort control: which field to order by and in which
- * direction. `direction` is ignored when `field === 'none'`.
+ * One sort key: which field to order by and in which direction. `direction` is
+ * ignored when `field === 'none'`. The sort control shows and edits a query's
+ * first key.
  */
 export interface SortState {
   field: SortField;
@@ -54,8 +55,8 @@ const NONE_PRIORITY = 3;
  * - dates: earliest `YYYY-MM-DD` first.
  *
  * Returns a number < 0, 0, or > 0 for the present-vs-present case only. Tasks
- * missing the value are handled separately by {@link sortTasks} so they always
- * sink to the bottom regardless of direction.
+ * missing the value are handled separately by {@link compareByKey} so they
+ * always sink to the bottom regardless of direction.
  */
 function compareField(a: Task, b: Task, field: SortField): number {
   if (field === "priority") {
@@ -85,40 +86,53 @@ function hasValue(task: Task, field: SortField): boolean {
 }
 
 /**
- * Sort tasks by the given state, returning a new array (never mutates the
+ * Compare two tasks by one sort key. Tasks lacking the key's value sink to the
+ * bottom regardless of direction; two such tasks tie on this key.
+ */
+function compareByKey(a: Task, b: Task, key: SortState): number {
+  const aHas = hasValue(a, key.field);
+  const bHas = hasValue(b, key.field);
+
+  // Missing values sink to the bottom in both directions.
+  if (!aHas && !bHas) {
+    return 0;
+  }
+  if (!aHas) {
+    return 1;
+  }
+  if (!bHas) {
+    return -1;
+  }
+
+  const dir = key.direction === "desc" ? -1 : 1;
+  return compareField(a, b, key.field) * dir;
+}
+
+/**
+ * Sort tasks by the given keys, returning a new array (never mutates the
  * input).
  *
- * - `field === 'none'`: returns a shallow copy in the original order.
- * - Tasks lacking the sort value always come last, regardless of direction.
- * - Equal keys fall back to a description compare so the order is stable across
- *   re-renders rather than reshuffling.
+ * - Keys apply in order, like consecutive Tasks `sort by` lines: a later key
+ *   only orders tasks that tie on every earlier key.
+ * - No keys (or only `'none'` keys): returns a shallow copy in the original
+ *   order.
+ * - Tasks lacking a key's value come last for that key, regardless of
+ *   direction.
+ * - Tasks that tie on every key fall back to a description compare so the
+ *   order is stable across re-renders rather than reshuffling.
  */
-export function sortTasks(tasks: Task[], state: SortState): Task[] {
-  if (state.field === "none") {
+export function sortTasks(tasks: Task[], keys: SortState[]): Task[] {
+  const activeKeys = keys.filter((key) => key.field !== "none");
+  if (activeKeys.length === 0) {
     return [...tasks];
   }
 
-  const field = state.field;
-  const dir = state.direction === "desc" ? -1 : 1;
-
   return [...tasks].sort((a, b) => {
-    const aHas = hasValue(a, field);
-    const bHas = hasValue(b, field);
-
-    // Missing values sink to the bottom in both directions.
-    if (!aHas && !bHas) {
-      return 0;
-    }
-    if (!aHas) {
-      return 1;
-    }
-    if (!bHas) {
-      return -1;
-    }
-
-    const primary = compareField(a, b, field) * dir;
-    if (primary !== 0) {
-      return primary;
+    for (const key of activeKeys) {
+      const result = compareByKey(a, b, key);
+      if (result !== 0) {
+        return result;
+      }
     }
 
     // Stable tiebreak: keep equal-keyed tasks in a deterministic order.

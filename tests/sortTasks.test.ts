@@ -44,7 +44,7 @@ describe("SORT_FIELD_LABELS", () => {
 describe("sortTasks", () => {
   it("returns a copy, not the same array reference", () => {
     const tasks = [createTask()];
-    expect(sortTasks(tasks, state())).not.toBe(tasks);
+    expect(sortTasks(tasks, [state()])).not.toBe(tasks);
   });
 
   it('preserves order and does not mutate input when field is "none"', () => {
@@ -53,7 +53,7 @@ describe("sortTasks", () => {
       createTask({ id: "a", priority: 0 }),
     ];
     const before = ids(tasks);
-    const result = sortTasks(tasks, state({ field: "none" }));
+    const result = sortTasks(tasks, [state({ field: "none" })]);
     expect(ids(result)).toEqual(["b", "a"]);
     expect(ids(tasks)).toEqual(before); // unchanged
   });
@@ -65,7 +65,7 @@ describe("sortTasks", () => {
         createTask({ id: "highest", priority: 0 }),
         createTask({ id: "medium", priority: 2 }),
       ];
-      const result = sortTasks(tasks, state({ field: "priority" }));
+      const result = sortTasks(tasks, [state({ field: "priority" })]);
       expect(ids(result)).toEqual(["highest", "medium", "low"]);
     });
 
@@ -75,7 +75,7 @@ describe("sortTasks", () => {
         createTask({ id: "none", priority: null }),
         createTask({ id: "high", priority: 1 }),
       ];
-      const result = sortTasks(tasks, state({ field: "priority" }));
+      const result = sortTasks(tasks, [state({ field: "priority" })]);
       expect(ids(result)).toEqual(["high", "none", "low"]);
     });
 
@@ -84,10 +84,9 @@ describe("sortTasks", () => {
         createTask({ id: "highest", priority: 0 }),
         createTask({ id: "lowest", priority: 5 }),
       ];
-      const result = sortTasks(
-        tasks,
+      const result = sortTasks(tasks, [
         state({ field: "priority", direction: "desc" }),
-      );
+      ]);
       expect(ids(result)).toEqual(["lowest", "highest"]);
     });
   });
@@ -98,7 +97,7 @@ describe("sortTasks", () => {
         createTask({ id: "late", dueDate: "2026-03-01" }),
         createTask({ id: "early", dueDate: "2026-01-01" }),
       ];
-      const result = sortTasks(tasks, state({ field: "dueDate" }));
+      const result = sortTasks(tasks, [state({ field: "dueDate" })]);
       expect(ids(result)).toEqual(["early", "late"]);
     });
 
@@ -107,10 +106,9 @@ describe("sortTasks", () => {
         createTask({ id: "early", dueDate: "2026-01-01" }),
         createTask({ id: "late", dueDate: "2026-03-01" }),
       ];
-      const result = sortTasks(
-        tasks,
+      const result = sortTasks(tasks, [
         state({ field: "dueDate", direction: "desc" }),
-      );
+      ]);
       expect(ids(result)).toEqual(["late", "early"]);
     });
 
@@ -119,7 +117,7 @@ describe("sortTasks", () => {
         createTask({ id: "none", dueDate: null }),
         createTask({ id: "dated", dueDate: "2026-01-01" }),
       ];
-      const result = sortTasks(tasks, state({ field: "dueDate" }));
+      const result = sortTasks(tasks, [state({ field: "dueDate" })]);
       expect(ids(result)).toEqual(["dated", "none"]);
     });
 
@@ -129,10 +127,9 @@ describe("sortTasks", () => {
         createTask({ id: "a", dueDate: "2026-01-01" }),
         createTask({ id: "b", dueDate: "2026-03-01" }),
       ];
-      const result = sortTasks(
-        tasks,
+      const result = sortTasks(tasks, [
         state({ field: "dueDate", direction: "desc" }),
-      );
+      ]);
       expect(ids(result)).toEqual(["b", "a", "none"]);
     });
 
@@ -141,7 +138,7 @@ describe("sortTasks", () => {
         createTask({ id: "late", scheduledDate: "2026-05-01" }),
         createTask({ id: "early", scheduledDate: "2026-02-01" }),
       ];
-      const result = sortTasks(tasks, state({ field: "scheduledDate" }));
+      const result = sortTasks(tasks, [state({ field: "scheduledDate" })]);
       expect(ids(result)).toEqual(["early", "late"]);
     });
   });
@@ -152,8 +149,60 @@ describe("sortTasks", () => {
         createTask({ id: "1", description: "Banana", priority: 1 }),
         createTask({ id: "2", description: "Apple", priority: 1 }),
       ];
-      const result = sortTasks(tasks, state({ field: "priority" }));
+      const result = sortTasks(tasks, [state({ field: "priority" })]);
       expect(result.map((t) => t.description)).toEqual(["Apple", "Banana"]);
+    });
+  });
+
+  describe("multiple keys", () => {
+    it("preserves order when there are no keys", () => {
+      const tasks = [
+        createTask({ id: "b", priority: 5 }),
+        createTask({ id: "a", priority: 0 }),
+      ];
+      expect(ids(sortTasks(tasks, []))).toEqual(["b", "a"]);
+    });
+
+    it("orders ties on the first key by the second key", () => {
+      const tasks = [
+        createTask({ id: "high-old", priority: 1, createdDate: "2026-01-01" }),
+        createTask({
+          id: "none-new",
+          priority: null,
+          createdDate: "2026-03-01",
+        }),
+        createTask({ id: "high-new", priority: 1, createdDate: "2026-02-01" }),
+      ];
+      const result = sortTasks(tasks, [
+        state({ field: "priority" }),
+        state({ field: "createdDate", direction: "desc" }),
+      ]);
+      expect(ids(result)).toEqual(["high-new", "high-old", "none-new"]);
+    });
+
+    it("orders tasks missing the first key's value by the second key", () => {
+      const tasks = [
+        createTask({ id: "undated-low", priority: 4 }),
+        createTask({ id: "dated", dueDate: "2026-01-01", priority: 4 }),
+        createTask({ id: "undated-high", priority: 1 }),
+      ];
+      const result = sortTasks(tasks, [
+        state({ field: "dueDate" }),
+        state({ field: "priority" }),
+      ]);
+      expect(ids(result)).toEqual(["dated", "undated-high", "undated-low"]);
+    });
+
+    it("lets the first key win over a later one", () => {
+      const tasks = [
+        createTask({ id: "low-new", priority: 4, createdDate: "2026-03-01" }),
+        createTask({ id: "high-old", priority: 1, createdDate: "2026-01-01" }),
+      ];
+      const result = sortTasks(tasks, [
+        state({ field: "priority" }),
+        state({ field: "createdDate", direction: "desc" }),
+      ]);
+      expect(ids(result)).toEqual(["high-old", "low-new"]);
     });
   });
 });

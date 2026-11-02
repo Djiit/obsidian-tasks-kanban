@@ -19,6 +19,30 @@ export class MetadataCache {}
 export class TFile {}
 export function setTooltip() {}
 
+export class Component {
+  load() {}
+  unload() {}
+}
+
+export class MarkdownRenderer {
+  // Mirrors Obsidian, which wraps inline text in a paragraph.
+  static async render(
+    _app: unknown,
+    markdown: string,
+    el: HTMLElement,
+  ): Promise<void> {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = markdown;
+    el.appendChild(paragraph);
+  }
+}
+
+export class Keymap {
+  static isModEvent(): boolean {
+    return false;
+  }
+}
+
 export class SettingTab {
   app: App;
   plugin: unknown;
@@ -126,11 +150,21 @@ export class ButtonComponent {
 }
 
 export class ExtraButtonComponent extends ButtonComponent {
-  setIcon(_icon: string): this {
+  icon = "";
+  tooltip = "";
+
+  setIcon(icon: string): this {
+    this.icon = icon;
     return this;
   }
 
-  setTooltip(_tooltip: string): this {
+  setTooltip(tooltip: string): this {
+    this.tooltip = tooltip;
+    return this;
+  }
+
+  setDisabled(disabled: boolean): this {
+    this.buttonEl.disabled = disabled;
     return this;
   }
 }

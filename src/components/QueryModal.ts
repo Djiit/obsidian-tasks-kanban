@@ -42,13 +42,14 @@ export class QueryModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "tasks-kanban-query-modal-help",
-      text: "One instruction per line. Supported: tag/path/folder includes, tag/path/folder does not include, description includes, date filters (e.g., due before tomorrow), sort by, and group by.",
+      text: "One instruction per line. Supported: tag/path/folder includes, tag/path/folder does not include, description includes, date filters (e.g., due before tomorrow), boolean combinations of filters, sort by, and group by.",
     });
 
     // Literal query syntax shown as an example; intentionally verbatim.
     const placeholder = [
       "tag includes #work",
       "description includes write tests",
+      "(due before tomorrow) OR (no due date)",
       "sort by due reverse",
       "group by priority",
     ].join("\n");

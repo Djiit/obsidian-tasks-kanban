@@ -525,6 +525,9 @@ export function serializeDateFilter(filter: DateFilterInstruction): string {
   // Use the stored keyword if available, otherwise fall back to the default
   const keyword = filter.keyword || DATE_FIELD_TO_KEYWORD[filter.field];
 
+  if (filter.operator === "has" || filter.operator === "no") {
+    return `${filter.operator} ${keyword} ${filter.value}`.trim();
+  }
   if (filter.operator === "on" && RELATIVE_DATES.has(filter.value)) {
     return `${keyword} ${filter.value}`;
   }
