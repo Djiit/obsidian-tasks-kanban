@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.13.0...0.14.0) (2026-11-02)
+
+
+### Features
+
+* edit a task from its card in Tasks' edit modal ([#117](https://github.com/Djiit/obsidian-tasks-kanban/issues/117)) ([f941a52](https://github.com/Djiit/obsidian-tasks-kanban/commit/f941a52eabd7a19bf2c756058f96ebc7f98496ee))
+
 ## [0.13.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.12.0...0.13.0) (2026-10-30)
 
 
