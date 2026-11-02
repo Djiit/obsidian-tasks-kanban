@@ -500,6 +500,31 @@
     flex-wrap: wrap;
 }
 
+/* Card edit button: Tasks' 📝, shown while the card is hovered */
+.tasks-kanban-card-edit {
+    margin-left: auto;
+    font-family: var(--font-interface);
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0;
+}
+
+.tasks-kanban-card-edit::after {
+    content: "📝";
+}
+
+.tasks-kanban-card:hover .tasks-kanban-card-edit,
+.tasks-kanban-card-edit:focus-visible {
+    opacity: 1;
+}
+
+/* Touch screens have no hover, so the button stays visible there. */
+@media (hover: none) {
+    .tasks-kanban-card-edit {
+        opacity: 1;
+    }
+}
+
 /* Card status */
 .tasks-kanban-card-status {
     display: inline-flex;

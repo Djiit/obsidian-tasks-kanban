@@ -86,6 +86,14 @@ export interface TasksCacheUpdateData {
 }
 
 /**
+ * The part of the Tasks plugin's public API (`apiV1`) the board uses.
+ * `editTaskLineModal` exists since Tasks 7.21.0.
+ */
+interface TasksApiV1 {
+  editTaskLineModal?: (taskLine: string) => Promise<string>;
+}
+
+/**
  * Tasks plugin settings relevant to writing done/cancelled dates
  */
 export interface WriteSettings {
@@ -254,6 +262,18 @@ export class TasksIntegration {
    */
   getStatusBySymbol(symbol: string): StatusInfo | undefined {
     return this.getStatuses().find((s) => s.symbol === symbol);
+  }
+
+  /**
+   * Get the Tasks plugin's "Create or edit task" modal for an existing task
+   * line, or null when the installed Tasks version doesn't offer it. The
+   * modal resolves to the edited line(s), or to "" when it is cancelled.
+   */
+  getEditTaskLineModal(): ((taskLine: string) => Promise<string>) | null {
+    const plugin = this.app.plugins.getPlugin("obsidian-tasks-plugin") as {
+      apiV1?: TasksApiV1;
+    } | null;
+    return plugin?.apiV1?.editTaskLineModal ?? null;
   }
 
   /**
