@@ -60,6 +60,19 @@ export class SettingTab {
 
 export class PluginSettingTab extends SettingTab {}
 
+export class Modal {
+  open() {}
+  close() {}
+}
+
+export class FuzzySuggestModal<T> extends Modal {
+  setPlaceholder(_placeholder: string): this {
+    return this;
+  }
+}
+
+export function setIcon() {}
+
 /** Base for input-bearing component doubles: wraps a real DOM element. */
 class ValueComponent<T extends HTMLElement> {
   inputEl: T;
