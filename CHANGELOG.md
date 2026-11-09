@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.14.0...0.15.0) (2026-11-09)
+
+
+### Features
+
+* spawn next occurrence when a recurring task is moved to Done ([#129](https://github.com/Djiit/obsidian-tasks-kanban/issues/129)) ([3f246ee](https://github.com/Djiit/obsidian-tasks-kanban/commit/3f246ee20ecb9590db2d3a135479fbbb58e00116))
+
+
+### Bug Fixes
+
+* **settings:** load Tasks statuses at plugin load for the column editor ([#131](https://github.com/Djiit/obsidian-tasks-kanban/issues/131)) ([50606df](https://github.com/Djiit/obsidian-tasks-kanban/commit/50606df0695f046000b147318d1b35e5018e085a))
+* **settings:** refresh the settings tab after out-of-tab board changes ([#132](https://github.com/Djiit/obsidian-tasks-kanban/issues/132)) ([96c3abf](https://github.com/Djiit/obsidian-tasks-kanban/commit/96c3abf7883a8980dcc449203d06cd216fcc8bf1))
+
 ## [0.14.0](https://github.com/Djiit/obsidian-tasks-kanban/compare/0.13.0...0.14.0) (2026-11-02)
 
 
