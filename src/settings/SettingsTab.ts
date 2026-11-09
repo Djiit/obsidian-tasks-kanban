@@ -372,6 +372,23 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   }
 
   /**
+   * Re-render the tab from the plugin's current data. Called by the plugin
+   * after data changes that happen outside the tab (e.g. "Open new blank
+   * board"): Obsidian caches the rendered definitions between visits, so
+   * without this the change stays invisible until a manual re-render.
+   */
+  refresh(): void {
+    const updatable = this as unknown as { update?: () => void };
+    if (updatable.update) {
+      updatable.update();
+    } else {
+      // Legacy path: re-seed the working copies from plugin data, then render.
+      this.seedWorkingCopies();
+      this.render();
+    }
+  }
+
+  /**
    * Persist the base board's column slice. `rerender` rebuilds the settings UI
    * after structural changes (toggle/add/delete); in-place edits skip it so the
    * control being typed in keeps focus.
@@ -410,11 +427,14 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   display(): void {
     // Legacy render path (Obsidian < 1.13): load the status list first so the
     // column editor doesn't render the default fallback statuses.
-    void this.plugin.loadStatuses().then(() => this.seedAndRender());
+    void this.plugin.loadStatuses().then(() => {
+      this.seedWorkingCopies();
+      this.render();
+    });
   }
 
-  /** Seed working copies from the plugin's current data and render the pane. */
-  private seedAndRender(): void {
+  /** Copy the plugin's current data into the tab's working copies. */
+  private seedWorkingCopies(): void {
     const data = this.plugin.getPluginData();
     this.baseQuery = data.baseQuery;
     this.baseColumns = data.baseColumns.map((c) => ({
@@ -429,8 +449,6 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
       })),
     }));
     this.errors.clear();
-
-    this.render();
   }
 
   /** (Re)build the whole settings pane from the working copies. */

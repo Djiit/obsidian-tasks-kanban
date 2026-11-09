@@ -574,3 +574,33 @@ describe("status loading", () => {
     expect(onStatusesChangedCb).not.toBeNull();
   });
 });
+
+describe("refresh()", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("re-renders via update() on the definitions path (Obsidian 1.13+)", () => {
+    const { tab, update } = makeHarness(makeData());
+
+    tab.refresh();
+
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to re-seeding and rendering when update() is unavailable (older Obsidian)", () => {
+    const { tab, plugin } = makeHarness(
+      makeData({ savedBoards: [makeBoard({ name: "Fresh" })] }),
+    );
+    (tab as unknown as { update?: unknown }).update = undefined;
+    const renderSpy = vi.spyOn(
+      tab as unknown as { render: () => void },
+      "render",
+    );
+
+    tab.refresh();
+
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(plugin.getPluginData().savedBoards[0].name).toBe("Fresh");
+  });
+});

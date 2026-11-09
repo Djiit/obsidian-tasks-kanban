@@ -45,6 +45,7 @@ function migrateLegacyQuery(data: LegacyBoardState | null): string {
 
 export default class TasksKanbanPlugin extends Plugin {
   private tasksIntegration: TasksIntegration | null = null;
+  private settingsTab: TasksKanbanSettingsTab | null = null;
   private data: PluginData = DEFAULT_PLUGIN_DATA;
 
   /** The base query string and saved boards, for the settings tab. */
@@ -187,6 +188,9 @@ export default class TasksKanbanPlugin extends Plugin {
       savedBoards: upsertSavedBoard(this.data.savedBoards, board),
     };
     await this.saveData(this.data);
+    // The settings modal caches the tab's rendered definitions, so poke the
+    // tab to re-render; otherwise the new board stays invisible there.
+    this.settingsTab?.refresh();
     await this.activateView(board.id);
     return board.id;
   }
@@ -208,7 +212,8 @@ export default class TasksKanbanPlugin extends Plugin {
     // column editor offers every configured status before a board is opened.
     void this.tasksIntegration.loadStatuses();
 
-    this.addSettingTab(new TasksKanbanSettingsTab(this.app, this));
+    this.settingsTab = new TasksKanbanSettingsTab(this.app, this);
+    this.addSettingTab(this.settingsTab);
 
     const tasksIntegration = this.tasksIntegration;
     this.registerView(VIEW_TYPE, (leaf: WorkspaceLeaf) => {
@@ -248,6 +253,7 @@ export default class TasksKanbanPlugin extends Plugin {
       this.tasksIntegration.unload();
       this.tasksIntegration = null;
     }
+    this.settingsTab = null;
   }
 
   /**
