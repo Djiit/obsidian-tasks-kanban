@@ -57,6 +57,23 @@ export default class TasksKanbanPlugin extends Plugin {
     return this.tasksIntegration?.getStatuses() ?? [];
   }
 
+  /**
+   * Reload the Tasks status configuration. Called at plugin load so the
+   * settings tab sees the real statuses before any board is opened, and by
+   * the settings tab each time it renders.
+   */
+  async loadStatuses(): Promise<void> {
+    await this.tasksIntegration?.loadStatuses();
+  }
+
+  /**
+   * Subscribe to status-list changes (loadStatuses() picking up a different
+   * configuration). Used by the settings tab to re-render its column editor.
+   */
+  onStatusesChanged(callback: () => void): () => void {
+    return this.tasksIntegration?.onStatusesChanged(callback) ?? (() => {});
+  }
+
   /** The list of openable boards: the base board plus each saved board. */
   getBoards(): { id: string; name: string }[] {
     return [
@@ -186,6 +203,10 @@ export default class TasksKanbanPlugin extends Plugin {
     await this.loadPluginData();
 
     this.tasksIntegration = new TasksIntegration(this.app);
+
+    // Load the vault's status configuration at startup so the settings tab's
+    // column editor offers every configured status before a board is opened.
+    void this.tasksIntegration.loadStatuses();
 
     this.addSettingTab(new TasksKanbanSettingsTab(this.app, this));
 
