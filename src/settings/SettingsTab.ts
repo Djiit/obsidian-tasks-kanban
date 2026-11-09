@@ -52,9 +52,16 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   constructor(app: App, plugin: TasksKanbanPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+    // Re-render when the status list loads or changes (e.g. at plugin start,
+    // before any board was opened), so the column editor never shows stale
+    // defaults.
+    plugin.onStatusesChanged(() => this.refreshDefinitions());
   }
 
   getSettingDefinitions(): SettingDefinitionItem[] {
+    // Pick up the current Tasks status configuration on every render; if it
+    // changed, the onStatusesChanged subscription above re-renders the tab.
+    void this.plugin.loadStatuses();
     const data = this.plugin.getPluginData();
 
     return [
@@ -351,12 +358,17 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   }
 
   /**
-   * Re-render the settings definitions UI. Only called from the definitions
-   * path, which Obsidian only runs on 1.13+; feature-detect so the plugin keeps
-   * declaring minAppVersion 1.12.7 (older versions use the display() path).
+   * Re-render the settings UI. On 1.13+ the definitions path rebuilds from
+   * getSettingDefinitions() via update(); older versions fall back to the
+   * imperative render() path.
    */
   private refreshDefinitions(): void {
-    (this as unknown as { update?: () => void }).update?.();
+    const updatable = this as unknown as { update?: () => void };
+    if (updatable.update) {
+      updatable.update();
+    } else {
+      this.render();
+    }
   }
 
   /**
@@ -396,7 +408,13 @@ export class TasksKanbanSettingsTab extends PluginSettingTab {
   }
 
   display(): void {
-    // Seed working copies from the plugin's current data each time the tab opens.
+    // Legacy render path (Obsidian < 1.13): load the status list first so the
+    // column editor doesn't render the default fallback statuses.
+    void this.plugin.loadStatuses().then(() => this.seedAndRender());
+  }
+
+  /** Seed working copies from the plugin's current data and render the pane. */
+  private seedAndRender(): void {
     const data = this.plugin.getPluginData();
     this.baseQuery = data.baseQuery;
     this.baseColumns = data.baseColumns.map((c) => ({

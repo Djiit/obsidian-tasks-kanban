@@ -77,6 +77,20 @@ const DEFAULT_STATUSES: StatusInfo[] = [
   { symbol: "x", name: "Done", type: "DONE" },
 ];
 
+/** Shallow equality over the fields loadStatuses() maps onto StatusInfo. */
+function sameStatuses(a: StatusInfo[], b: StatusInfo[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (s, i) =>
+        s.symbol === b[i].symbol &&
+        s.name === b[i].name &&
+        s.type === b[i].type &&
+        s.nextStatusSymbol === b[i].nextStatusSymbol,
+    )
+  );
+}
+
 /**
  * Data received from Tasks cache update event
  */
@@ -113,6 +127,7 @@ export class TasksIntegration {
   private statuses: StatusInfo[] = [];
   private eventRefs: EventRef[] = [];
   private subscribers: ((tasks: Task[]) => void)[] = [];
+  private statusSubscribers: (() => void)[] = [];
 
   constructor(app: App) {
     this.app = app;
@@ -217,9 +232,25 @@ export class TasksIntegration {
         nextStatusSymbol: s.nextStatusSymbol,
       }));
 
-    if (flattened.length > 0) {
+    if (flattened.length > 0 && !sameStatuses(flattened, this.statuses)) {
       this.statuses = flattened;
+      for (const subscriber of this.statusSubscribers) {
+        subscriber();
+      }
     }
+  }
+
+  /**
+   * Subscribe to status-list changes (e.g. after loadStatuses() picks up a
+   * different configuration). Returns an unsubscribe function.
+   */
+  onStatusesChanged(callback: () => void): () => void {
+    this.statusSubscribers.push(callback);
+    return () => {
+      this.statusSubscribers = this.statusSubscribers.filter(
+        (sub) => sub !== callback,
+      );
+    };
   }
 
   /**
@@ -354,5 +385,6 @@ export class TasksIntegration {
     }
     this.eventRefs = [];
     this.subscribers = [];
+    this.statusSubscribers = [];
   }
 }

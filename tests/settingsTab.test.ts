@@ -20,10 +20,14 @@ interface TestHarness {
   plugin: {
     getPluginData: () => PluginData;
     getStatuses: () => StatusInfo[];
+    loadStatuses: ReturnType<typeof vi.fn>;
+    onStatusesChanged: ReturnType<typeof vi.fn>;
     saveSettings: ReturnType<typeof vi.fn>;
   };
   data: PluginData;
   update: ReturnType<typeof vi.fn>;
+  /** The callback registered via onStatusesChanged, if any. */
+  onStatusesChangedCb: (() => void) | null;
 }
 
 function makeData(overrides: Partial<PluginData> = {}): PluginData {
@@ -49,9 +53,17 @@ function makeBoard(overrides: Partial<SavedBoard> = {}): SavedBoard {
 }
 
 function makeHarness(data: PluginData): TestHarness {
+  let onStatusesChangedCb: (() => void) | null = null;
   const plugin = {
     getPluginData: () => data,
     getStatuses: () => STATUSES,
+    loadStatuses: vi.fn(async () => {}),
+    onStatusesChanged: vi.fn((cb: () => void) => {
+      onStatusesChangedCb = cb;
+      return () => {
+        onStatusesChangedCb = null;
+      };
+    }),
     saveSettings: vi.fn(
       async (
         baseQuery: string,
@@ -67,7 +79,7 @@ function makeHarness(data: PluginData): TestHarness {
     plugin as unknown as TasksKanbanPlugin,
   );
   const update = vi.spyOn(tab, "update").mockReturnValue(undefined);
-  return { tab, plugin, data, update };
+  return { tab, plugin, data, update, onStatusesChangedCb };
 }
 
 type AnyDefinition = Record<string, any>;
@@ -488,5 +500,77 @@ describe("settings definitions: custom columns", () => {
         "col-1",
       ]);
     });
+  });
+});
+
+describe("status loading", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("reloads statuses from Tasks when the definitions are built", () => {
+    const { tab, plugin } = makeHarness(makeData());
+
+    tab.getSettingDefinitions();
+
+    expect(plugin.loadStatuses).toHaveBeenCalled();
+  });
+
+  it("reloads statuses from Tasks when the legacy display path renders", async () => {
+    const { tab, plugin } = makeHarness(makeData());
+
+    tab.display();
+    // display() defers rendering until the status load settles.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(plugin.loadStatuses).toHaveBeenCalled();
+  });
+
+  it("re-renders the definitions when the status list changes", () => {
+    const { tab, update, onStatusesChangedCb } = makeHarness(makeData());
+
+    expect(onStatusesChangedCb).not.toBeNull();
+    onStatusesChangedCb?.();
+
+    expect(update).toHaveBeenCalled();
+    expect(tab).toBeDefined();
+  });
+
+  it("renders one checkbox per status from getStatuses() in a column editor", () => {
+    const manyStatuses: StatusInfo[] = [
+      ...STATUSES,
+      { symbol: "-", name: "Cancelled", type: "CANCELLED" },
+      { symbol: "1", name: "Priority 1", type: "NON_TASK" },
+    ];
+    const data = makeData({ baseColumns: [makeColumn()] });
+    let onStatusesChangedCb: (() => void) | null = null;
+    const plugin = {
+      getPluginData: () => data,
+      getStatuses: () => manyStatuses,
+      loadStatuses: vi.fn(async () => {}),
+      onStatusesChanged: vi.fn((cb: () => void) => {
+        onStatusesChangedCb = cb;
+        return () => {};
+      }),
+      saveSettings: vi.fn(async () => {}),
+    };
+    const tab = new TasksKanbanSettingsTab(
+      { workspace: { getLeavesOfType: () => [] } } as never,
+      plugin as unknown as TasksKanbanPlugin,
+    );
+    vi.spyOn(tab, "update").mockReturnValue(undefined);
+
+    const defs = tab.getSettingDefinitions() as unknown as AnyDefinition[];
+    const item = columnItem(defs, "Ongoing");
+    const setting = new Setting(document.createElement("div"));
+    item?.render(setting);
+
+    const labels = setting.controlEl.querySelectorAll(
+      ".tasks-kanban-column-symbol",
+    );
+    expect(labels).toHaveLength(5);
+    expect(labels[3].textContent).toContain("Cancelled");
+    expect(labels[4].textContent).toContain("Priority 1");
+    expect(onStatusesChangedCb).not.toBeNull();
   });
 });
