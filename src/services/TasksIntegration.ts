@@ -91,6 +91,7 @@ export interface TasksCacheUpdateData {
  */
 interface TasksApiV1 {
   editTaskLineModal?: (taskLine: string) => Promise<string>;
+  executeToggleTaskDoneCommand?: (line: string, path: string) => string;
 }
 
 /**
@@ -274,6 +275,20 @@ export class TasksIntegration {
       apiV1?: TasksApiV1;
     } | null;
     return plugin?.apiV1?.editTaskLineModal ?? null;
+  }
+
+  /**
+   * Get the Tasks plugin's "toggle task done" line transform, or null when the
+   * installed Tasks version doesn't offer it. The returned function maps a task
+   * line to its toggled form — two lines when a recurring task is completed.
+   */
+  getToggleTaskDoneCommand(): ((line: string, path: string) => string) | null {
+    const plugin = this.app.plugins.getPlugin("obsidian-tasks-plugin") as {
+      apiV1?: TasksApiV1;
+    } | null;
+    return (
+      plugin?.apiV1?.executeToggleTaskDoneCommand?.bind(plugin.apiV1) ?? null
+    );
   }
 
   /**

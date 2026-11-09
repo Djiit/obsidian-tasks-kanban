@@ -33,6 +33,8 @@ const mockTasksIntegration = {
   getStatusBySymbol: vi.fn(),
   getWriteSettings: vi.fn(),
   getEditTaskLineModal: vi.fn(),
+  getToggleTaskDoneCommand: vi.fn(),
+  getStatuses: vi.fn(),
   getTasks: vi.fn(),
   subscribe: vi.fn(),
   unload: vi.fn(),
@@ -526,6 +528,342 @@ describe("TaskUpdater", () => {
         mockFile,
         "- [ ] Cancelled task",
       );
+    });
+  });
+
+  describe("updateTaskStatus with recurring tasks", () => {
+    const TODO_NEXT_X: StatusInfo = {
+      symbol: " ",
+      name: "Todo",
+      type: "TODO",
+      nextStatusSymbol: "x",
+    };
+    const IN_PROGRESS_NEXT_X: StatusInfo = {
+      symbol: "/",
+      name: "In Progress",
+      type: "IN_PROGRESS",
+      nextStatusSymbol: "x",
+    };
+    const QUESTION_NEXT_CUSTOM: StatusInfo = {
+      symbol: "?",
+      name: "Question",
+      type: "TODO",
+      nextStatusSymbol: "X",
+    };
+    const CUSTOM_DONE: StatusInfo = {
+      symbol: "X",
+      name: "Reviewed",
+      type: "DONE",
+    };
+
+    const toggleTaskDone = vi.fn();
+
+    function createRecurringTask(
+      statusSymbol: string,
+      lineNumber: number,
+      description = "Recurring task",
+    ): Task {
+      const task = createTask(statusSymbol, lineNumber, description);
+      task.recurrence = { rule: "every day" };
+      task.originalMarkdown = `- [${statusSymbol}] ${description} 🔁 every day`;
+      return task;
+    }
+
+    const getExpectedDate = () => new Date().toISOString().split("T")[0];
+
+    beforeEach(() => {
+      mockApp.vault.read.mockResolvedValue(
+        "# Notes\n- [ ] Recurring task 🔁 every day\nend",
+      );
+      mockApp.vault.modify.mockResolvedValue(undefined);
+      mockApp.vault.getAbstractFileByPath.mockReturnValue(mockFile);
+      toggleTaskDone.mockReset();
+      mockTasksIntegration.getToggleTaskDoneCommand.mockReturnValue(
+        toggleTaskDone,
+      );
+      mockTasksIntegration.getStatuses.mockReturnValue([
+        TODO_NEXT_X,
+        IN_PROGRESS_NEXT_X,
+        DONE_STATUS,
+        CANCELLED_STATUS,
+      ]);
+      mockTasksIntegration.getStatusBySymbol.mockImplementation((symbol) => {
+        if (symbol === " ") return TODO_NEXT_X;
+        if (symbol === "/") return IN_PROGRESS_NEXT_X;
+        if (symbol === "x") return DONE_STATUS;
+        if (symbol === "-") return CANCELLED_STATUS;
+        return undefined;
+      });
+      mockTasksIntegration.getWriteSettings.mockResolvedValue({
+        setDoneDate: true,
+        setCancelledDate: true,
+        taskFormat: "tasksPluginEmoji",
+      });
+    });
+
+    it("delegates to the Tasks toggle API and writes the completed line plus the next occurrence", async () => {
+      toggleTaskDone.mockReturnValue(
+        "- [ ] Recurring task 🔁 every day 📅 2026-07-21\n- [x] Recurring task 🔁 every day ✅ 2026-07-20",
+      );
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).toHaveBeenCalledWith(
+        "- [ ] Recurring task 🔁 every day",
+        "/test/file.md",
+      );
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "# Notes\n- [ ] Recurring task 🔁 every day 📅 2026-07-21\n- [x] Recurring task 🔁 every day ✅ 2026-07-20\nend",
+      );
+    });
+
+    it("passes the original line when an in-progress task chains to done", async () => {
+      mockApp.vault.read.mockResolvedValue("- [/] Recurring task 🔁 every day");
+      toggleTaskDone.mockReturnValue(
+        "- [x] Recurring task 🔁 every day ✅ 2026-07-20\n- [ ] Recurring task 🔁 every day 📅 2026-07-21",
+      );
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask("/", 0),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).toHaveBeenCalledWith(
+        "- [/] Recurring task 🔁 every day",
+        "/test/file.md",
+      );
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "- [x] Recurring task 🔁 every day ✅ 2026-07-20\n- [ ] Recurring task 🔁 every day 📅 2026-07-21",
+      );
+    });
+
+    it("synthesizes a predecessor line when the target done symbol is not the chain next", async () => {
+      mockTasksIntegration.getStatuses.mockReturnValue([
+        TODO_NEXT_X,
+        QUESTION_NEXT_CUSTOM,
+        CUSTOM_DONE,
+      ]);
+      mockTasksIntegration.getStatusBySymbol.mockImplementation((symbol) => {
+        if (symbol === " ") return TODO_NEXT_X;
+        if (symbol === "?") return QUESTION_NEXT_CUSTOM;
+        if (symbol === "X") return CUSTOM_DONE;
+        return undefined;
+      });
+      toggleTaskDone.mockReturnValue(
+        "- [X] Recurring task 🔁 every day ✅ 2026-07-20\n- [ ] Recurring task 🔁 every day 📅 2026-07-21",
+      );
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "X",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).toHaveBeenCalledWith(
+        "- [?] Recurring task 🔁 every day",
+        "/test/file.md",
+      );
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "# Notes\n- [X] Recurring task 🔁 every day ✅ 2026-07-20\n- [ ] Recurring task 🔁 every day 📅 2026-07-21\nend",
+      );
+    });
+
+    it("writes a single line when the toggle returns no next occurrence", async () => {
+      toggleTaskDone.mockReturnValue(
+        "- [x] Recurring task 🔁 every day ✅ 2026-07-20",
+      );
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "# Notes\n- [x] Recurring task 🔁 every day ✅ 2026-07-20\nend",
+      );
+    });
+
+    it("falls back to the plain rewrite when no status leads to the target symbol", async () => {
+      mockTasksIntegration.getStatusBySymbol.mockImplementation((symbol) => {
+        if (symbol === " ") return TODO_NEXT_X;
+        if (symbol === "X") return CUSTOM_DONE;
+        return undefined;
+      });
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "X",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).not.toHaveBeenCalled();
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [X] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("falls back to the plain rewrite when the Tasks toggle API is absent", async () => {
+      mockTasksIntegration.getToggleTaskDoneCommand.mockReturnValue(null);
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [x] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("falls back to the plain rewrite when the toggle result lacks the target status", async () => {
+      toggleTaskDone.mockReturnValue("- [/] Recurring task 🔁 every day");
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).toHaveBeenCalledTimes(1);
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [x] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("falls back to the plain rewrite when the toggle API throws", async () => {
+      toggleTaskDone.mockImplementation(() => {
+        throw new Error("boom");
+      });
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [x] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("falls back when the target symbol only appears in the text, not the checkbox", async () => {
+      toggleTaskDone.mockReturnValue(
+        "- [ ] Recurring task mentions [x] in prose",
+      );
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [x] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("does not use a CANCELLED or NON_TASK status as predecessor", async () => {
+      const cancelledNextCustom: StatusInfo = {
+        symbol: "-",
+        name: "Cancelled",
+        type: "CANCELLED",
+        nextStatusSymbol: "X",
+      };
+      mockTasksIntegration.getStatuses.mockReturnValue([
+        TODO_NEXT_X,
+        cancelledNextCustom,
+        CUSTOM_DONE,
+      ]);
+      mockTasksIntegration.getStatusBySymbol.mockImplementation((symbol) => {
+        if (symbol === " ") return TODO_NEXT_X;
+        if (symbol === "-") return cancelledNextCustom;
+        if (symbol === "X") return CUSTOM_DONE;
+        return undefined;
+      });
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "X",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).not.toHaveBeenCalled();
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [X] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("does not use the toggle API for a non-recurring task", async () => {
+      const result = await taskUpdater.updateTaskStatus(
+        createTask(" ", 1),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).not.toHaveBeenCalled();
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [x] Recurring task 🔁 every day ✅ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("does not use the toggle API when moving a recurring task to a non-DONE status", async () => {
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "/",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).not.toHaveBeenCalled();
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        "# Notes\n- [/] Recurring task 🔁 every day\nend",
+      );
+    });
+
+    it("does not use the toggle API when moving a recurring task to CANCELLED", async () => {
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask(" ", 1),
+        "-",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).not.toHaveBeenCalled();
+      expect(mockApp.vault.modify).toHaveBeenCalledWith(
+        mockFile,
+        `# Notes\n- [-] Recurring task 🔁 every day ❌ ${getExpectedDate()}\nend`,
+      );
+    });
+
+    it("does not use the toggle API when the recurring task is already DONE", async () => {
+      mockApp.vault.read.mockResolvedValue(
+        "- [x] Recurring task 🔁 every day ✅ 2026-07-19",
+      );
+
+      const result = await taskUpdater.updateTaskStatus(
+        createRecurringTask("x", 0),
+        "x",
+      );
+
+      expect(result).toBe(true);
+      expect(toggleTaskDone).not.toHaveBeenCalled();
     });
   });
 

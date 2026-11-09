@@ -24,6 +24,12 @@ target column's drop symbol, and the card reappears in the destination column.
 - [ ] DnD: Round-trip me Todo → In Progress → Done → Todo and confirm the file
       ends back at `- [ ]`.
 
+## Recurring
+
+- [ ] DnD: Recurring weekly 🔁 every week 📅 2026-11-16
+      Drag to Done: expect `- [x]` + ✅ date on this line AND a new `- [ ]` line
+      with 📅 2026-11-23 created next to it.
+
 ## Verification checklist
 
 - [ ] File content updates on disk after each successful drop.
