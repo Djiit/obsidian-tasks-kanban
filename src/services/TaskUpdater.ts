@@ -1,5 +1,5 @@
 import { type App, Notice, TFile } from "obsidian";
-import type { Task } from "./TasksIntegration";
+import type { StatusInfo, Task } from "./TasksIntegration";
 import type { TasksIntegration } from "./TasksIntegration";
 import { FIELD_SYNTAX, resolveTaskFormat } from "../utils/taskFormat";
 
@@ -56,6 +56,28 @@ export class TaskUpdater {
       const newStatus =
         this.tasksIntegration.getStatusBySymbol(newStatusSymbol);
 
+      // Completing a recurring task must also create its next occurrence, and
+      // only the Tasks plugin can compute it. Delegate the whole line rewrite
+      // to its toggle command; fall through to the plain rewrite when it can't.
+      if (
+        newStatus?.type === "DONE" &&
+        currentStatus?.type !== "DONE" &&
+        task.recurrence
+      ) {
+        const replacement = this.toggleRecurringCompletion(
+          line,
+          match,
+          task,
+          currentStatus,
+          newStatusSymbol,
+        );
+        if (replacement) {
+          lines.splice(lineNumber, 1, ...replacement);
+          await this.app.vault.modify(file, lines.join("\n"));
+          return true;
+        }
+      }
+
       // First, replace the status symbol in the line
       const lineWithNewSymbol = line.replace(
         `${match[1]}${task.status.symbol}${match[2]}`,
@@ -104,6 +126,66 @@ export class TaskUpdater {
       console.error("Failed to update task status:", error);
       return false;
     }
+  }
+
+  /**
+   * Ask the Tasks plugin to complete a recurring task: its toggle command
+   * returns the completed line plus the next occurrence (two lines) when the
+   * task recurs. Returns the replacement lines, or null when the installed
+   * Tasks offers no toggle API or no status leads to the target symbol, in
+   * which case the caller falls back to the plain symbol rewrite.
+   */
+  private toggleRecurringCompletion(
+    line: string,
+    match: RegExpMatchArray,
+    task: Task,
+    currentStatus: StatusInfo | undefined,
+    newStatusSymbol: string,
+  ): string[] | null {
+    const toggle = this.tasksIntegration.getToggleTaskDoneCommand();
+    if (!toggle) {
+      return null;
+    }
+
+    // The toggle advances a line to the next status of its current symbol, but
+    // a kanban drop targets the column's symbol directly. Feed it a line whose
+    // symbol leads to the target: the task's own when the chain already points
+    // there, otherwise any configured predecessor of the target.
+    const predecessor =
+      currentStatus?.nextStatusSymbol === newStatusSymbol
+        ? task.status.symbol
+        : this.tasksIntegration
+            .getStatuses()
+            .find(
+              (s) =>
+                s.nextStatusSymbol === newStatusSymbol &&
+                (s.type === "TODO" || s.type === "IN_PROGRESS"),
+            )?.symbol;
+    if (!predecessor) {
+      return null;
+    }
+
+    const lineToToggle =
+      predecessor === task.status.symbol
+        ? line
+        : line.replace(
+            `${match[1]}${task.status.symbol}${match[2]}`,
+            `${match[1]}${predecessor}${match[2]}`,
+          );
+
+    let output: string;
+    try {
+      output = toggle(lineToToggle, task.taskLocation.path);
+    } catch (error) {
+      console.error("Tasks toggle failed, falling back:", error);
+      return null;
+    }
+    const resultLines = output.split("\n");
+    // Only the checkbox counts: the target symbol can also appear in the text.
+    const completed = resultLines.some(
+      (l) => l.match(/^\s*- \[([^\]]*)]/)?.[1] === newStatusSymbol,
+    );
+    return completed ? resultLines : null;
   }
 
   /**
