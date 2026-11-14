@@ -48,7 +48,7 @@
     "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",
-    "eslint-plugin-obsidianmd": "^0.4.2",
+    "eslint-plugin-obsidianmd": "^0.5.1",
     "husky": "^9.1.7",
     "jsdom": "^31.0.0",
     "nano-staged": "^1.0.2",
